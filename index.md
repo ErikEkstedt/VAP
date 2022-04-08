@@ -38,8 +38,7 @@ is then the concatenation of the last 5s (using the first 5s as context) over al
     * During non-activity (from the specific speaker) it is used to infer **BC-prediction**
 * The **center box** is a visualization of the **VAP-window**
     * The bins correspond to `[0.2, 0.4, 0.6, 0.8]` seconds
-    * The model outputs probabilities over each specific, binary, state of the VAP-window. 
-    * The values in each binary VAP-window state are multiplied by its associated proabability and aggregated to produce the coloring of the bins.
+    * At each time step the model outputs a probability distribution over all VAP-window states. The transparency level of the bin colors are the weighted contribution over all states.
       * Full colors -> higher probability of activity
       * White/dim colors -> lower probability of activity
 
