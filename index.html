@@ -1,141 +1,604 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <title>Voice Activity Projection</title>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.9.1/font/bootstrap-icons.css">
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
-  <style>
-    /* Remove the navbar's default margin-bottom and rounded borders */ 
-    .navbar {
-      margin-bottom: 0;
-      border-radius: 0;
-    }
-    
-    /* Add a gray background color and some padding to the footer */
-    footer {
-      background-color: #f2f2f2;
-      padding: 25px;
-    }
-  </style>
-</head>
-<body>
+  <head>
+    <title>Voice Activity Projection</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.9.1/font/bootstrap-icons.css"
+    />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+      /* Remove the navbar's default margin-bottom and rounded borders */
+      .navbar {
+        margin-bottom: 0;
+        border-radius: 0;
+      }
 
-<nav class="navbar navbar-inverse">
-  <div class="container-fluid">
-    <div class="navbar-header">
-      <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#myNavbar">
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>                        
-      </button>
-      <a class="navbar-brand" href="#">VAP</a>
+      /* Add a gray background color and some padding to the footer */
+      footer {
+        background-color: #f2f2f2;
+        padding: 25px;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+      <div class="container-fluid">
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarNav"
+          aria-controls="navbarNav"
+          aria-expanded="false"
+          aria-label="Toggle navigation"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <a class="navbar-brand" href="#">VAP</a>
+        <div class="collapse navbar-collapse" id="navBarNav">
+          <ul class="navbar-nav">
+            <li class="nav-item">
+              <a class="nav-link" href="#">Contact</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Jumbotron -->
+    <div class="p-5 mb-4 bg-light rounded-3">
+      <div class="container-fluid py-5">
+        <h1 class="display-5 fw-bold">Voice Activity Projection</h1>
+        <p class="col-md-8 fs-4">
+          A general, incremental and predictive model of conversational
+          dynamics. The model extract speech representation, incrementally, over
+          each frame of dialog and predicts the activity over a
+          projection-window of 2 seconds in to the future.
+        </p>
+        <p class="col-md-8 fs-4">
+          The inspiration of the model was to develop a general
+          <strong>turn-taking</strong> model. A model that is
+        </p>
+        <ul>
+          <li>General</li>
+          <ul>
+            <li>No annotations</li>
+            <li>No feature extraction</li>
+            <li>No speaker normalization</li>
+          </ul>
+          <li>Incremental</li>
+          <ul>
+            <li>Train/evaluate/utilize over entire dialogs</li>
+          </ul>
+          <li>Predictive</li>
+          <ul>
+            <li>Predict upcoming activity</li>
+            <li>Provide extra time to process what to say</li>
+          </ul>
+        </ul>
+        <blockquote class="blockquote col-md-8">
+          <p>
+            "The Voice Activity Projection model can be thought of as a Language
+            Model that predicts the immediate (2s) voice activity of
+            interlocutors in a dialog."
+          </p>
+        </blockquote>
+        <figcaption class="blockquote-footer">
+          The authors describing
+          <cite title="Source Title"> Voice Activity Projection models </cite>
+        </figcaption>
+        <button class="btn btn-primary" type="button">
+          <a href="#demo" style="color: white"> Demo </a>
+        </button>
+        <button class="btn btn-primary" type="button">
+          <a href="#" style="color: white"> Paper (Model) </a>
+        </button>
+        <button class="btn btn-primary" type="button">
+          <a href="#" style="color: white"> Paper (Prosody) </a>
+        </button>
+      </div>
     </div>
-    <div class="collapse navbar-collapse" id="myNavbar">
-      <ul class="nav navbar-nav">
-        <li class="active"><a href="#">Home</a></li>
-        <li><a href="#">About</a></li>
-        <li><a href="#">Gallery</a></li>
-        <li><a href="#">Contact</a></li>
+
+    <!-- Cards -->
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col">
+          <div
+            class="card"
+            style="
+              width: 100%;
+              padding: 5px;
+              border: solid 1px;
+              border-radius: 10px;
+            "
+          >
+            <img
+              src="/assets/imgs/vap.png"
+              width="100%"
+              class="card-img-top"
+              alt="model image"
+            />
+            <div class="card-body">
+              <h3 class="card-title">Model Description</h3>
+              <p class="card-text">
+                A GPT-like transformer processing self-supervised speech
+                representations trained through MLE for modeling conversational
+                dynamics (voice activity).
+              </p>
+              <a href="#model-description" class="btn btn-primary">read more</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="col">
+          <div
+            class="card"
+            style="
+              width: 100%;
+              padding: 5px;
+              border: solid 1px;
+              border-radius: 10px;
+            "
+          >
+            <img
+              src="/assets/imgs/events.png"
+              width="100%"
+              class="card-img-top"
+              alt="projection window"
+            />
+            <div class="card-body">
+              <br />
+              <h3 class="card-title">Turn-taking Events</h3>
+              <p class="card-text">
+                Automatic extraction of turn-taking events.
+              </p>
+              <a href="#turn-taking-events" class="btn btn-primary"
+                >read more</a
+              >
+            </div>
+          </div>
+        </div>
+        <div class="col">
+          <div
+            class="card"
+            style="
+              width: 100%;
+              padding: 5px;
+              border: solid 1px;
+              border-radius: 10px;
+            "
+          >
+            <img
+              src="/assets/imgs/projwin.png"
+              width="100%"
+              class="card-img-top"
+              alt="projection window"
+            />
+            <div class="card-body">
+              <h3 class="card-title">Projection & Projection Windows</h3>
+              <p class="card-text">
+                How to discretize future voice activity? How is the
+                codebook/vocabulary over projection windows constructed?
+              </p>
+              <a href="#projection-window" class="btn btn-primary">read more</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="col">
+          <div
+            class="card"
+            style="
+              width: 100%;
+              padding: 20px;
+              border: solid 1px;
+              border-radius: 10px;
+            "
+          >
+            <img
+              src="/assets/imgs/zeroshot.png"
+              width="100%"
+              class="card-img-top"
+              alt="zero shot img"
+            />
+            <div class="card-body">
+              <h3 class="card-title">Zero-shot Evaluation</h3>
+              <br />
+              <p class="card-text">
+                How to infer turn-taking actions from the general output of the
+                model?
+              </p>
+              <a href="#zero-shot" class="btn btn-primary">read more</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <br />
+    <hr />
+
+    <!-- Demo -->
+    <div class="container-fluid text-center" id="demo">
+      <h2>Demo</h2>
+      <br />
+      <div class="container text-center">
+        <video style="max-width: 75%" controls>
+          <source src="./assets/HerVap.mp4" type="video/mp4" />
+          Your browser does not support the video tag.
+        </video>
+      </div>
+    </div>
+    <br />
+    <hr />
+
+    <div class="container" id="model-description">
+      <div class="row text-center">
+        <h1>Model Description</h1>
+
+        <p>
+          A general, incremental and predictive model of conversational
+          dynamics.
+          <a href="https://github.com/ErikEkstedt/conv_ssl"> Code </a>
+        </p>
+      </div>
+      <div class="row">
+        <div class="col">
+          <ul>
+            <li><h3>Transformer</h3></li>
+            <ul>
+              <li>GPT-like, decoder-only, unidirectional</li>
+              <li>4 layers</li>
+              <li>4 heads</li>
+              <li>256 dim</li>
+              <li>AliBi attention</li>
+              <ul>
+                <li>
+                  <a href="https://ofir.io/train_short_test_long.pdf">Paper</a>
+                </li>
+                <li>
+                  <a
+                    href="https://github.com/ofirpress/attention_with_linear_biases"
+                    >Github</a
+                  >
+                </li>
+              </ul>
+              <li>
+                <a href="https://arxiv.org/pdf/1706.03762.pdf">
+                  Attention is all you need (Vaswani et al, 2017)
+                </a>
+              </li>
+            </ul>
+            <li><h3>CPC</h3></li>
+
+            <ul>
+              <li>CNN-1D</li>
+              <ul>
+                <li>5 layers</li>
+                <li>256 dim</li>
+                <li>sequential</li>
+              </ul>
+              <li>LSTM</li>
+              <ul>
+                <li>1 layer</li>
+                <li>256 dim</li>
+              </ul>
+              <li>Papers</li>
+              <ul>
+                <li>
+                  <a href="https://arxiv.org/pdf/1807.03748.pdf">
+                    Representation Learning with Contrastive Predictive Coding,
+                    (Oord et al, 2018)
+                  </a>
+                </li>
+                <li>
+                  <a href="https://arxiv.org/pdf/2002.02848.pdf">
+                    Unsupervised Pretraining Transfers Well across Languages,
+                    (Riviere et al, 2020)
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://github.com/facebookresearch/CPC_audio/tree/main/cpc"
+                  >
+                    Code & pretrained weights
+                  </a>
+                </li>
+              </ul>
+            </ul>
+          </ul>
+        </div>
+        <div class="col" style="margin: auto">
+          <img src="/assets/imgs/vap.png" width="100%" alt="model image" />
+        </div>
+      </div>
+    </div>
+    <br />
+    <hr />
+
+    <div class="container-fluid bg-3 text-center" id="projection-window">
+      <div class="row text-center">
+        <h1>Projection Window</h1>
+      </div>
+      <div class="row">
+        <div class="col">
+          <figure class="text-end">
+            <blockquote class="blockquote">
+              <p>
+                "The calibration of conversational timing and the capacity for
+                projecting when others are going to stop speaking are crucial
+                elements of the conversational machine."
+              </p>
+            </blockquote>
+            <figcaption class="blockquote-footer">
+              N.J.Enfield's book
+              <cite title="Source Title"
+                >How we Talk. Chapter 4, The One Second Window.
+              </cite>
+            </figcaption>
+          </figure>
+          <br />
+
+          <div style="text-align: left">
+            <p>
+              We want to model the future voice activity in order to predict
+              turn-taking.
+            </p>
+            <p>
+              The projection window consists of voice activity over 2 seconds.
+              We divide the window into 4 regions of increasing duration 200ms,
+              400ms, 600ms and 800ms to create 8 bins. The ratio of activity is
+              calculated over each bin and is considered active above 50% to
+              create a discrete onehot representation of size (2, 4). The vector
+              is mapped to an index in a codebook/vocabulary by treating it as a
+              binary number.
+            </p>
+            <p>Example: [[0,0,1,0], [1,0,0,0]] -> 00101000 -> 40</p>
+          </div>
+        </div>
+        <div class="col">
+          <img
+            src="/assets/imgs/projwin.png"
+            width="100%"
+            alt="projection window"
+          />
+        </div>
+      </div>
+    </div>
+    <br />
+    <hr />
+
+    <div class="container-fluid bg-3 text-center" id="turn-taking-events">
+      <div class="row">
+        <h2>Turn-taking Events</h2>
+      </div>
+      <br />
+      <div class="row">
+        <div class="col">
+          <h3>Shift vs Hold</h3>
+          <img src="/assets/imgs/ShiftHold.png" width="90%" />
+          <p style="text-align: left; font-size: 1.2rem">
+            Predict the next speaker during <strong> mutual silences</strong>.
+          </p>
+          <p style="text-align: left">
+            We define two regions pre-offset and post-offset where only a single
+            speaker can be active in order to omit amgibuous moments of
+            overlaps. The last and next speaker define if there is a Shift or a
+            Hold.
+          </p>
+        </div>
+        <div class="col">
+          <h3>Shift-Prediction</h3>
+          <img src="/assets/imgs/ShiftPred.png" width="90%" />
+          <img src="/assets/imgs/ShiftPredNeg.png" width="90%" />
+          <p style="text-align: left; font-size: 1.2rem">
+            Predict the next speaker during <strong>active speech</strong>.
+          </p>
+          <p style="text-align: left">
+            We define a prediction region (0.5s) over the last segment of
+            activity, prior to a Shift event defined in "Shift vs Holds", as
+            positive shift-predictions. Negatives are sampled from active
+            regions of a speaker "far away" (2s) from activity of the
+            "listener".
+          </p>
+        </div>
+        <div class="col">
+          <h3>BC-Prediction</h3>
+          <img src="/assets/imgs/bc.png" width="90%" />
+          <img src="/assets/imgs/BCPred.png" width="90%" />
+          <p style="text-align: left; font-size: 1.2rem">
+            Predict upcoming backchannels (<strong>BC</strong>s).
+          </p>
+          <p style="text-align: left">
+            A backchannel (BC) is a short segment of activity where a "listener"
+            indicates attention and/or acknowledgement, e.g. "oh", "yeah",
+            "mhm", etc.
+          </p>
+          <p style="text-align: left">
+            We define a BC as short segments of isolated activity from the
+            listener. The segments must be short (less than 1s) and isolated,
+            defined by pre-silence (1s) and post-silence (2s) variables.
+          </p>
+        </div>
+        <div class="col">
+          <h3>Short vs Long</h3>
+          <img src="/assets/imgs/ShortLong.png" width="90%" />
+          <p style="text-align: left; font-size: 1.2rem">
+            Predict the length (Short vs Long) at the onset of an utterance
+            during a shift event.
+          </p>
+          <p style="text-align: left">
+            We consider all BC events as Short and all Shift events as Long. The
+            prediction region covers 0.2s at the start of the utterance. This
+            distinction can be useful to evaluate whether activity from a user
+            during active speech from the system should result in an interuption
+            or if the system may continue their turn.
+          </p>
+        </div>
+      </div>
+    </div>
+    <br />
+    <hr />
+
+    <div class="container-fluid bg-3 text-center" id="zero-shot">
+      <div class="row">
+        <h2>Zero-shot Evaluation</h2>
+        <p>
+          How to predict turn-taking actions from a general distribution over
+          future voice activity?
+        </p>
+        <p style="text-align: left">
+          All zero-shot methods follow a similar approach where the researchers
+          select subsets over the total states which correspond to some clear
+          outcome. For instance when the current moment is a mutual silence and
+          we want to find the most likely next speaker we can choose a subset
+          where only speaker A is active and compare it to the symmetrical
+          opposite where only speaker B is active. In other words we define two
+          subsets, compare their total probabilities and determine a winner.
+          That is we force the model to predict which of the two outcomes
+          (defined by the researchers) is the most likely.
+        </p>
+        <p style="text-align: left">
+          The examples below will mostly visualize the state for a particular
+          listener (blue) and the current speaker (yellow) but is symmetrically
+          true the other way around.
+        </p>
+      </div>
+      <div class="row">
+        <div class="col">
+          <h3>Shift vs Hold</h3>
+          <img src="/assets/imgs/zeroshot.png" width="60%" />
+          <p style="text-align: left; font-size: 1.2rem">
+            Predict the next speaker during <strong>mutual silence</strong>.
+          </p>
+          <p style="text-align: left">
+            We select symmetrical subsets where only a single speaker is active
+            with the constraint that the last two bins (active speaker) must be
+            active.
+          </p>
+          <p style="text-align: left">
+            The two last bins cover the longest duration (1.2s in total) and is
+            a clear indication that the upcoming turn will belong to that
+            speaker. However, given that we are inside a silent region there is
+            some uncertainty when the activity will start and so we define the
+            states such that the first to bins (active speaker) may optionally
+            be active.
+          </p>
+          <p style="text-align: left">
+            In our experiment we define 4 subsets for each speaker shown in the
+            figure above.
+          </p>
+        </div>
+        <div class="col">
+          <h3>Shift-Prediction</h3>
+          <img
+            style="border: solid 1px; padding: 5px"
+            src="/assets/imgs/predshift.png"
+            width="45%"
+          />
+          <img src="/assets/imgs/predshift2.png" width="45%" />
+          <p style="text-align: left; font-size: 1.2rem">
+            Predict the next speaker during <strong>active speech</strong>.
+          </p>
+          <p style="text-align: left">
+            The Shift-prediction is similar to "Shift vs Hold" with the
+            inclusion of activity in the first two bins of the current speaker.
+            In other words, given that we are in an active region where the
+            current speaker is active there is some uncertainty when their
+            utterance will actually end and so we include all states where
+            either/both first two bins of the current speaker indicates
+            activity.
+          </p>
+          <p style="text-align: left">
+            The optionality of the first 2 bins being active for the current
+            speaker adds 3 additional states for each original state in the
+            "Shift vs Hold" subsets, see Figure above. This means that we
+            compare the 12 states of the current listener to the 4 states of the
+            current speaker (same as Shift vs Hold) in order to predict an
+            upcoming turn-shift.
+          </p>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col">
+          <h3>BC-Prediction</h3>
+          <img src="/assets/imgs/zero_bc_pred.png" width="60%" />
+          <p style="text-align: left; font-size: 1.2rem">
+            Predict an upcoming backchannel (short segment of activity) from the
+            listener during active speech or mutual silences.
+          </p>
+          <p style="text-align: left">
+            The subset that represent a BC-prediction includes a short segment
+            of activity from the listener and a clear indication that the
+            current speaker will continue their turn. The probability of a
+            BC-prediction is simply the total probability over the subset.
+          </p>
+          <p style="text-align: left">
+            We define 2 constraints, the first is that the listener must have at
+            least 1 out of the 3 starting bins active (a backchannel) and the
+            second that the last 2 bins of the current speaker must be active.
+            The first constraint represent that the listener will say something
+            short but will not continue their activity passed the
+            projection-window horizon. The second constraint represent that the
+            current speaker will continue to hold their turn.
+          </p>
+          <p style="text-align: left">
+            During evaluation a threshold is defined in order to turn the
+            probabilities to a discrete action.
+          </p>
+        </div>
+        <div class="col">
+          <h3>Short vs Long</h3>
+          <img src="/assets/imgs/zero_bc_pred.png" width="60%" />
+          <p style="text-align: left; font-size: 1.2rem">
+            Predict if a recent onset will be part of Long or Short activity
+            segment.
+          </p>
+          <p style="text-align: left">
+            This prediction uses the same subsets as defined in the
+            BC-prediction task but is simply evaluated at the onset of an
+            activity segment and the roles of the speakers are reversed
+            (consider the recent onset to belong to the blue speaker).
+          </p>
+          <p style="text-align: left">
+            <strong>PS.</strong>
+            The "bc-probabilities" are defined everywhere for the two speakers
+            and can be interpreted as a backchannel-prediction when the speaker
+            is listening and as an indication that their current activity will
+            soon end if they are active.
+            <strong>DS.</strong>
+          </p>
+        </div>
+      </div>
+    </div>
+    <br />
+
+    <footer class="container-fluid">
+      <p>Footer Text</p>
+      <ul class="list-group">
+        <li class="list-group-item">
+          <a href="https://github.com/ErikEkstedt/conv_ssl">
+            <i class="bi bi-github"> conv_ssl</i>
+          </a>
+        </li>
+        <li class="list-group-item">
+          <a href="https://github.com/ErikEkstedt/vap_turn_taking">
+            <i class="bi bi-github"> vap_turn_taking</i>
+          </a>
+        </li>
+        <li class="list-group-item">
+          <a href="https://github.com/ErikEkstedt/datasets_turntaking">
+            <i class="bi bi-github"> datasets_turn_taking</i>
+          </a>
+        </li>
       </ul>
-    </div>
-  </div>
-</nav>
-
-<div class="jumbotron">
-  <div class="container text-center">
-    <h1>Voice Activity Projection</h1>      
-    <p>Some text that represents "Me"...</p>
-  </div>
-</div>
-  
-<div class="container-fluid bg-3 text-center">    
-  <h3>Voice Activity Projection</h3><br>
-
-  <div class="row">
-    <div class="col-sm-3" width="25%">
-      <div class="card text-bg-light mb-3" style="max-width: 18rem;">
-        <h5 class="card-header">Model Description</h5>
-        <img src="/assets/imgs/vap.png" height='200px' class="card-img-top" alt="model image">
-        <div class="card-body">
-          <br>
-          <p class="card-text">A general, incremental and predictive model for conversational dynamics (voice activity).</p>
-          <a href="#" class="btn btn-primary">read more</a>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-sm-3" width="25%">
-      <div class="card" style="width: 18rem;">
-        <h5 class="card-header">Projection & Projection Windows</h5>
-        <img src="/assets/imgs/projwin.png" width='100%' class="card-img-top" alt="projection window">
-        <div class="card-body">
-          <br>
-          <p class="card-text">How to discrete future voice activity? How is the vocabulary over projection windows constructed?</p>
-          <a href="#" class="btn btn-primary">read more</a>
-        </div>
-      </div>
-    </div>
-    <div class="col-sm-3" width="25%">
-      <div class="card" style="width: 18rem;">
-        <h5 class="card-header">Turn-taking Events</h5>
-        <img src="/assets/imgs/events.png" width='100%' class="card-img-top" alt="projection window">
-        <div class="card-body">
-          <br>
-          <p class="card-text">Automatic/programmatic extraction of turn-taking events.</p>
-          <a href="#" class="btn btn-primary">read more</a>
-        </div>
-      </div>
-    </div>
-    <div class="col-sm-3" width="25%">
-      <div class="card" style="width: 18rem;">
-        <h5 class="card-header">Zero-shot Evaluation</h5>
-        <img src="/assets/imgs/zeroshot.png" height='200px' class="card-img-top" alt="zero shot img">
-        <div class="card-body">
-          <br>
-          <p class="card-text">How to infer turn-taking actions from the general output of the model?</p>
-          <a href="#" class="btn btn-primary">read more</a>
-        </div>
-      </div>
-    </div>
-  </div>
-</div><br>
-
-
-<div class="container-fluid bg-3 text-center">    
-  <h2>Demo</h2><br>
-  <div class="container text-center">
-    <video width="640" height="480" controls>
-      <source src="./assets/HerVap.mp4" type="video/mp4">
-      Your browser does not support the video tag.
-    </video>
-  </div>
-</div><br>
-
-<footer class="container-fluid text-center">
-  <p>Footer Text</p>
-
-  <ul class="list-group">
-    <li class="list-group-item">
-      <a  href="https://github.com/ErikEkstedt/conv_ssl">
-        <i class="bi bi-github"> conv_ssl</i>
-      </a>
-    </li>
-    <li class="list-group-item">
-      <a  href="https://github.com/ErikEkstedt/vap_turn_taking">
-        <i class="bi bi-github"> vap_turn_taking</i>
-      </a>
-    </li>
-    <li class="list-group-item">
-      <a  href="https://github.com/ErikEkstedt/datasets_turntaking">
-        <i class="bi bi-github"> datasets_turn_taking</i>
-      </a>
-    </li>
-  </ul>
-</footer>
-
-</body>
+    </footer>
+  </body>
 </html>
