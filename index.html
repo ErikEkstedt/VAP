@@ -59,50 +59,24 @@
         <h1 class="display-5 fw-bold">Voice Activity Projection</h1>
         <p class="col-md-8 fs-4">
           A general, incremental and predictive model of conversational
-          dynamics. The model extract speech representation, incrementally, over
-          each frame of dialog and predicts the activity over a
-          projection-window of 2 seconds in to the future.
+          dynamics. The model process the voice activity and audio waveform of
+          spoken dialog and outputs a probability distribution over
+          <i>projection-windows</i> (discrete states) that represents speaker
+          activity over the next 2 seconds. The main purpose is to use it as a
+          <strong>turn-taking</strong> model for spoken dialog systems.
         </p>
-        <p class="col-md-8 fs-4">
-          The inspiration of the model was to develop a general
-          <strong>turn-taking</strong> model. A model that is
-        </p>
-        <ul>
-          <li>General</li>
-          <ul>
-            <li>No annotations</li>
-            <li>No feature extraction</li>
-            <li>No speaker normalization</li>
-          </ul>
-          <li>Incremental</li>
-          <ul>
-            <li>Train/evaluate/utilize over entire dialogs</li>
-          </ul>
-          <li>Predictive</li>
-          <ul>
-            <li>Predict upcoming activity</li>
-            <li>Provide extra time to process what to say</li>
-          </ul>
-        </ul>
-        <blockquote class="blockquote col-md-8">
-          <p>
-            "The Voice Activity Projection model can be thought of as a Language
-            Model that predicts the immediate (2s) voice activity of
-            interlocutors in a dialog."
-          </p>
-        </blockquote>
-        <figcaption class="blockquote-footer">
-          The authors describing
-          <cite title="Source Title"> Voice Activity Projection models </cite>
-        </figcaption>
         <button class="btn btn-primary" type="button">
           <a href="#demo" style="color: white"> Demo </a>
         </button>
         <button class="btn btn-primary" type="button">
-          <a href="#" style="color: white"> Paper (Model) </a>
+          <a href="https://arxiv.org/abs/2205.09812" style="color: white">
+            TBD: Paper (Model/Interspeech2022)
+          </a>
         </button>
         <button class="btn btn-primary" type="button">
-          <a href="#" style="color: white"> Paper (Prosody) </a>
+          <a href="#" style="color: white">
+            TBD: Paper (Prosody/SigDial2022)
+          </a>
         </button>
       </div>
     </div>
@@ -222,8 +196,8 @@
         </div>
       </div>
     </div>
-    <br />
     <hr />
+    <br />
 
     <!-- Demo -->
     <div class="container-fluid text-center" id="demo">
@@ -239,79 +213,122 @@
     <br />
     <hr />
 
+    <!-- Model -->
     <div class="container" id="model-description">
       <div class="row text-center">
-        <h1>Model Description</h1>
+        <h1>Voice Activity Projection (VAP)</h1>
+        <blockquote class="blockquote col-md-8">
+          <p style="font-size: 1rem">
+            <i>
+              "VAP is a general, incremental and predictive model of
+              conversational dynamics and can be thought of as a 'Language
+              Model' that outputs a probability distribution over
+              projection-windows in a dialog."
+            </i>
+          </p>
+        </blockquote>
+        <figcaption class="blockquote-footer">
+          One author describing the <cite title="Source Title"> model </cite>
+        </figcaption>
 
-        <p>
-          A general, incremental and predictive model of conversational
-          dynamics.
-          <a href="https://github.com/ErikEkstedt/conv_ssl"> Code </a>
-        </p>
+        <div class="row">
+          <div class="col-md-8">
+            <h4 style="text-align: left">Model Description</h4>
+            <p style="text-align: left; font-size: 1.2rem">
+              The VAP model consists of an encoder that processes raw audio
+              waveforms, along with the current VA information, to produce
+              latent representations of a defined frame frequency which are then
+              fed into the predictor network. The predictor is a causal sequence
+              network that processes the context available up until the current
+              frame and outputs a probability distribution over 256
+              <i>projection-window</i> states.
+            </p>
+          </div>
+          <div class="col-md-4">
+            <h4>Main strengths</h4>
+            <ul
+              style="margin: auto; text-align:left; border: solid 1px gray; border-radius: 5px"
+            >
+              <li><b>General</b></li>
+              <ul>
+                <li>No annotations</li>
+                <li>No feature extraction</li>
+                <li>No speaker normalization</li>
+              </ul>
+              <li><b>Incremental</b></li>
+              <ul>
+                <li>Train/evaluate/utilize over entire dialogs</li>
+              </ul>
+              <li><b>Predictive</b></li>
+              <ul>
+                <li>Predict upcoming activity</li>
+                <li>Provide extra time to process what to say</li>
+              </ul>
+            </ul>
+          </div>
+        </div>
       </div>
+
       <div class="row">
         <div class="col">
+          <h3>Transformer</h3>
           <ul>
-            <li><h3>Transformer</h3></li>
+            <li>GPT-like, decoder-only, unidirectional</li>
+            <li>4 layers</li>
+            <li>4 heads</li>
+            <li>256 dim</li>
+            <li>AliBi attention</li>
             <ul>
-              <li>GPT-like, decoder-only, unidirectional</li>
-              <li>4 layers</li>
-              <li>4 heads</li>
-              <li>256 dim</li>
-              <li>AliBi attention</li>
-              <ul>
-                <li>
-                  <a href="https://ofir.io/train_short_test_long.pdf">Paper</a>
-                </li>
-                <li>
-                  <a
-                    href="https://github.com/ofirpress/attention_with_linear_biases"
-                    >Github</a
-                  >
-                </li>
-              </ul>
               <li>
-                <a href="https://arxiv.org/pdf/1706.03762.pdf">
-                  Attention is all you need (Vaswani et al, 2017)
-                </a>
+                <a href="https://ofir.io/train_short_test_long.pdf">Paper</a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/ofirpress/attention_with_linear_biases"
+                  >Github</a
+                >
               </li>
             </ul>
-            <li><h3>CPC</h3></li>
-
+            <li>
+              <a href="https://arxiv.org/pdf/1706.03762.pdf">
+                Attention is all you need (Vaswani et al, 2017)
+              </a>
+            </li>
+          </ul>
+          <h3>CPC</h3>
+          <ul>
+            <li>CNN-1D</li>
             <ul>
-              <li>CNN-1D</li>
-              <ul>
-                <li>5 layers</li>
-                <li>256 dim</li>
-                <li>sequential</li>
-              </ul>
-              <li>LSTM</li>
-              <ul>
-                <li>1 layer</li>
-                <li>256 dim</li>
-              </ul>
-              <li>Papers</li>
-              <ul>
-                <li>
-                  <a href="https://arxiv.org/pdf/1807.03748.pdf">
-                    Representation Learning with Contrastive Predictive Coding,
-                    (Oord et al, 2018)
-                  </a>
-                </li>
-                <li>
-                  <a href="https://arxiv.org/pdf/2002.02848.pdf">
-                    Unsupervised Pretraining Transfers Well across Languages,
-                    (Riviere et al, 2020)
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="https://github.com/facebookresearch/CPC_audio/tree/main/cpc"
-                  >
-                    Code & pretrained weights
-                  </a>
-                </li>
-              </ul>
+              <li>5 layers</li>
+              <li>256 dim</li>
+              <li>Sequential</li>
+            </ul>
+            <li>LSTM</li>
+            <ul>
+              <li>1 layer</li>
+              <li>256 dim</li>
+            </ul>
+            <li>Papers</li>
+            <ul>
+              <li>
+                <a href="https://arxiv.org/pdf/1807.03748.pdf">
+                  Representation Learning with Contrastive Predictive Coding,
+                  (Oord et al, 2018)
+                </a>
+              </li>
+              <li>
+                <a href="https://arxiv.org/pdf/2002.02848.pdf">
+                  Unsupervised Pretraining Transfers Well across Languages,
+                  (Riviere et al, 2020)
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/facebookresearch/CPC_audio/tree/main/cpc"
+                >
+                  Code & pretrained weights
+                </a>
+              </li>
             </ul>
           </ul>
         </div>
@@ -323,10 +340,16 @@
     <br />
     <hr />
 
+    <!-- Projection -->
     <div class="container-fluid bg-3 text-center" id="projection-window">
       <div class="row text-center">
         <h1>Projection Window</h1>
+        <p>
+          <i> How to define the future? </i>
+        </p>
+        <p></p>
       </div>
+
       <div class="row">
         <div class="col">
           <figure class="text-end">
@@ -339,8 +362,8 @@
             </blockquote>
             <figcaption class="blockquote-footer">
               N.J.Enfield's book
-              <cite title="Source Title"
-                >How we Talk. Chapter 4, The One Second Window.
+              <cite title="Source Title">
+                How we Talk. Chapter 4, The One Second Window.
               </cite>
             </figcaption>
           </figure>
@@ -349,16 +372,20 @@
           <div style="text-align: left">
             <p>
               We want to model the future voice activity in order to predict
-              turn-taking.
+              turn-taking decisions over dyadic spoken dialog. The
+              representation of the future should be short enough to introduce
+              minimal noise whilst long enough to predict turn-shifts in advance
+              and to discern shifts from shorter segments of activity
+              (backchannels).
             </p>
             <p>
-              The projection window consists of voice activity over 2 seconds.
-              We divide the window into 4 regions of increasing duration 200ms,
-              400ms, 600ms and 800ms to create 8 bins. The ratio of activity is
-              calculated over each bin and is considered active above 50% to
-              create a discrete onehot representation of size (2, 4). The vector
-              is mapped to an index in a codebook/vocabulary by treating it as a
-              binary number.
+              The projection window consists of voice activity over 2 seconds of
+              dialog. We divide the window into 4 regions of increasing duration
+              200ms, 400ms, 600ms and 800ms to create 8 bins. The ratio of
+              activity is calculated over each bin and is considered active
+              above 50% to create a discrete onehot representation of size (2,
+              4). The vector is mapped to an index in a codebook/vocabulary by
+              treating it as a binary number.
             </p>
             <p>Example: [[0,0,1,0], [1,0,0,0]] -> 00101000 -> 40</p>
           </div>
@@ -451,8 +478,10 @@
       <div class="row">
         <h2>Zero-shot Evaluation</h2>
         <p>
-          How to predict turn-taking actions from a general distribution over
-          future voice activity?
+          <i>
+            How to predict turn-taking actions from a general distribution over
+            future voice activity?
+          </i>
         </p>
         <p style="text-align: left">
           All zero-shot methods follow a similar approach where the researchers
@@ -580,22 +609,24 @@
     </div>
     <br />
 
-    <footer class="container-fluid">
-      <p>Footer Text</p>
+    <footer class="container-fluid" id="contact">
+      <h2>Contact</h2>
       <ul class="list-group">
         <li class="list-group-item">
-          <a href="https://github.com/ErikEkstedt/conv_ssl">
-            <i class="bi bi-github"> conv_ssl</i>
+          <a href="mailto: erikekst@kth.se">
+            <i class="bi bi-envelope-fill"> Email (erikekst@kth.se) </i>
           </a>
         </li>
         <li class="list-group-item">
           <a href="https://github.com/ErikEkstedt/vap_turn_taking">
-            <i class="bi bi-github"> vap_turn_taking</i>
+            <i class="bi bi-github">
+              vap_turn_taking: Vap-head, turn-taking events, projection-windows.
+            </i>
           </a>
         </li>
         <li class="list-group-item">
-          <a href="https://github.com/ErikEkstedt/datasets_turntaking">
-            <i class="bi bi-github"> datasets_turn_taking</i>
+          <a href="https://github.com/ErikEkstedt/conv_ssl">
+            <i class="bi bi-github"> conv_ssl: Model training </i>
           </a>
         </li>
       </ul>
