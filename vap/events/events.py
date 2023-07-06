@@ -46,23 +46,6 @@ class EventConfig:
     long_onset_region_time: float = 0.2
     long_onset_condition_time: float = 1.0
 
-    @staticmethod
-    def add_argparse_args(parser, fields_added=[]):
-        for k, v in EventConfig.__dataclass_fields__.items():
-            parser.add_argument(f"--event_{k}", type=v.type, default=v.default)
-            fields_added.append(k)
-        return parser, fields_added
-
-    @staticmethod
-    def args_to_conf(args):
-        return EventConfig(
-            **{
-                k.replace("event_", ""): v
-                for k, v in vars(args).items()
-                if k.startswith("event_")
-            }
-        )
-
 
 def time_to_frames(time: float, frame_hz: int) -> int:
     frame = int(time * frame_hz)
@@ -836,8 +819,7 @@ class TurnTakingEvents:
 
 if __name__ == "__main__":
 
-    from vap.datamodule import VAPDataModule
-    from vap.objective import ObjectiveVAP
+    from vap.data.datamodule import VAPDataModule
 
     # from vap.plot_utils import plot_mel_spectrogram, plot_vad
     # import matplotlib.pyplot as plt
@@ -859,29 +841,6 @@ if __name__ == "__main__":
         sh_post_cond_time=0.5,
     )
     eventer = TurnTakingEvents(conf)
-    ob = ObjectiveVAP()
 
     batch = next(iter(dm.train_dataloader()))
-
     events = eventer(batch["vad"][:, :-100])
-
-    for batch in dm.val_dataloader():
-        events = eventer(batch["vad"][:, :-100])
-        labels, ds_labels = ob.get_labels(batch["vad"], ds_label=True)
-        # for b in range(2):
-        #     x = torch.arange(batch["vad"].shape[1] - 100) / 50
-        #     plt.close("all")
-        #     fig, ax = plt.subplots(3, 1, sharex=True, figsize=(12, 4))
-        #     plot_mel_spectrogram(y=batch["waveform"][b], ax=ax)
-        #     plot_vad(x, batch["vad"][b, :-100, 0], ax=ax[0], ypad=5)
-        #     plot_vad(x, batch["vad"][b, :-100, 1], ax=ax[1], ypad=5)
-        #     plot_event(events["shift"][b], ax=ax, color="g")
-        #     plot_event(events["hold"][b], ax=ax, color="b")
-        #     plot_event(events["short"][b], ax=ax)
-        #     ax[-1].plot(x, ds_labels[b], linewidth=2)
-        #     ax[-1].set_ylim([0, 2])
-        #     # ax[c].axvline(s/50, color='g', linewidth=2)
-        #     # ax[c].axvline(e/50, color='r', linewidth=2)
-        #     plt.tight_layout()
-        #     plt.show()
-        #     # plt.pause(0.1)
