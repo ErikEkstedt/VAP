@@ -4,7 +4,8 @@
 Automatic extraction of turn-taking events.
 
 
-The `TurnTakingEvents` module expects a VAD tensor of shape `(B, N_FRAMES, 2)` and outputs a dictionary
+The `TurnTakingEvents` module expects a VAD tensor of shape `(B, N_FRAMES, 2)` and outputs a dictionary with event frames.
+See also [vap/metrics.py](vap/metrics.py) to get a sense of how it's used during training.
 
 ```python
 conf = EventConfig()
@@ -23,7 +24,7 @@ events = eventer(vad)  # vad: Tensor (b, n_frames, 2) onehot /binary
 #     ])
 ```
 
-where an entry, e.g. 'shift', contains a list of shift events over the batch. containing `start-frame, end-frame, speaker` where the speaker represent the next-speaker, the one who is active after the silence.
+where an entry, e.g. 'shift', contains a list of shift events over the batch. containing `start_frame, end_frame, speaker` where the speaker represent the next-speaker, the speaker (channel) who is active after the silence.
 
 ```python
 [[], # batch 0, empty: no shifts found in this sample
@@ -43,7 +44,7 @@ where an entry, e.g. 'shift', contains a list of shift events over the batch. co
  [(848, 867, 1)]]
 ```
 
-These can then be used to extract the probability output of the model. Taking batch entry 2 from above
+These can then be used to extract the probability output of the model.
 
 ```python
 # iterate over the batch samples
@@ -80,6 +81,7 @@ for b in range(batch_size):
 
 ```
 
+The `EventConfig`
 
 ```python
 @dataclass
