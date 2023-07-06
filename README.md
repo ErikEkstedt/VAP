@@ -2,6 +2,16 @@
 
 Voice Activity Projection is a Self-supervised objective for Turn-taking Events. This is an extended version which trains a stereo model (mono is still possible) that does not require any VAD information as input BUT do require separate channels for both speakers. Overbleed between the channels is fine as long as you have access to the VAD information (used as label during training). The stereo model greatly simplifies inference where the only input is a stereo waveform. The model is trained on a multitask loss defined by the original VAP-objective and a VAD-objective (predict the current voice activity over each frame for the two separate channels).
 
+## Installation
+* Create conda env: `conda create -n vap python=3.10`
+  - source env: `conda source vap`
+  - Working with `python 3.10` but I don't think it matters too much...
+* PyTorch: `conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia`
+    - Have not tested all versions but should work from `torch 2.0.1` as of time of writing...
+* Install **`VAP`** (this repo):
+  * cd to root directory and run:
+    * `pip install -r requirements.txt`
+    * `pip install -e .`
 
 ### VapStereo
 
@@ -33,24 +43,20 @@ The model is a GPT-like transformer model, using [AliBI attention](https://ofir.
 A state-dict tensor is included in the `examples/` folder:
 * `example/VAP_3mmz3t0u_50Hz_ad20s_134-epoch9-val_2.56.pt`
 
+## Training
 
-## Installation
-* Create conda env: `conda create -n voice_activity_projection python=3`
-  - source env: `conda source voice_activity_projection`
-  - Working with `python 3.9` but I don't think it matters too much...
-* PyTorch: `conda install pytorch torchvision torchaudio cudatoolkit=11.6 -c pytorch`
-    - Have not tested all versions but should work from `torch 1.12.1` as of time of writing...
-* Install **`VoiceActivityProjection`** (this repo):
-  * cd to root directory and run:
-    * `pip install -r requirements.txt`
-    * `pip install -e .`
-* [OPTIONAL] Dependencies for training:
-  * **DATASET**
-    * Install [vap_dataset](https://github.com/ErikEkstedt/vap_dataset)
-      * `git clone https://github.com/ErikEkstedt/vap_dataset.git`
-      * cd to repo, and install dependencies: `pip install -r requirements.txt`
-      * Install repo: `pip install -e .`
+Training is done with the `main.py` script that uses [hydra](hydra.cc), read more about the data (csv-files) in [vap/data/README.md](vap/data/README.md).
+Look into the default config in [vap/conf/default_config.yaml](vap/conf/default_config.yaml) to get started. Entries that exists in the config can be
+changed by `pyton vap/main.py datamodule.num_workers` but other entries you could add requires a '+' sign `python vap/main.py +trainer.limit_val_batches=0.5`.
 
+As an example:
+```bash
+python vap/main.py \ 
+    datamodule.train_path=example/data/sliding_train.csv \ 
+    datamodule.val_path=example/data/sliding_val.csv \ 
+    datamodule.num_workers=12 \ 
+    datamodule.batch_size=10
+```
 
 ## Citation
 
