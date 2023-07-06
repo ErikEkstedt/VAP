@@ -5,9 +5,10 @@ Voice Activity Projection is a Self-supervised objective for Turn-taking Events.
 
 ### VapStereo
 
-<div style='margin-bottom: 50px; padding: 10px; background: white; border-radius: 5px'>
+
 ![](assets/VapStereo.png)
-</div>
+
+
 1. Audio encoder
     - (Default) [CPC facebookresearch](https://github.com/facebookresearch/CPC_audio))
     - Causal / incremental
