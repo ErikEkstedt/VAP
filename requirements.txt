@@ -6,3 +6,4 @@ lightning
 wandb
 pytest
 pandas
+matplotlib

@@ -47,6 +47,10 @@ class VAPModule(L.LightningModule):
     def forward(self, waveform: Tensor) -> dict[str, Tensor]:
         return self.model(waveform)
 
+    @staticmethod
+    def load_model(path: str) -> VAP:
+        return VAPModule.load_from_checkpoint(path).model
+
     def configure_optimizers(self) -> dict:
         lr_scheduler = {
             "scheduler": self.lr_scheduler,

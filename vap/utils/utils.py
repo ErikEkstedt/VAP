@@ -2,11 +2,11 @@ import torch
 from torch import Tensor
 import json
 from os.path import dirname
-from typing import List, Optional, Tuple
+from typing import Tuple
 
 from vap.utils.audio import time_to_frames
 
-VAD_LIST = List[List[List[float]]]
+VAD_LIST = list[list[list[float]]]
 
 
 ################################################
@@ -140,7 +140,7 @@ def get_dialog_states(vad) -> torch.Tensor:
 
 def get_vad_list_subset(
     vad_list: VAD_LIST, start_time: float, end_time: float
-) -> List[List[List[float]]]:
+) -> VAD_LIST:
     duration = end_time - start_time
 
     subset = [[], []]
@@ -199,7 +199,7 @@ def vad_onehot_to_vad_list(
     vad: Tensor,
     frame_hz: int = 50,
     ipu_thresh_time: float = 0.1,
-) -> List[VAD_LIST]:
+) -> list[VAD_LIST]:
     assert (
         vad.ndim == 3
     ), f"Expects vad with batch-dim of shape (B, n_frames, 2) but got {vad.shape}"

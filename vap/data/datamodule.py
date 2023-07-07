@@ -7,7 +7,7 @@ from torch import Tensor
 from torch.utils.data import Dataset, DataLoader
 import lightning as L
 
-from vap.utils.audio import load_waveform
+from vap.utils.audio import load_waveform, mono_to_stereo
 from vap.utils.utils import vad_list_to_onehot
 
 
@@ -59,6 +59,12 @@ class VAPDataset(Dataset):
             sample_rate=self.sample_rate,
             mono=self.mono,
         )
+
+        # Stereo Audio
+        # Use the vad-list information to convert mono to stereo
+        if w.shape[0] == 1:
+            w = mono_to_stereo(w, d["vad_list"], sample_rate=self.sample_rate)
+
         vad = vad_list_to_onehot(
             d["vad_list"], duration=dur + self.horizon, frame_hz=self.frame_hz
         )

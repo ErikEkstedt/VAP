@@ -9,6 +9,7 @@ SAMPLE_RATE: int = 16_000
 N_MELS: int = 80
 N_FFT: int = 400
 HOP_LENGTH: int = 320
+VAD_LIST = list[list[list[float]]]
 
 
 def time_to_samples(t: float, sample_rate: int) -> int:
@@ -69,6 +70,33 @@ def load_waveform(
     return x, sr
 
 
+def mono_to_stereo(
+    audio: torch.Tensor, vad_list: VAD_LIST, sample_rate: int = SAMPLE_RATE
+) -> torch.Tensor:
+    """
+    audio: Tensor, (1, n_samples)
+    vad_list: list[  list[list[float,float]],  list[list[float,float]]  ]
+    sample_rate: int, sampling rate of the audio (default: 16_000)
+
+    Returns
+        stereo: Tensor, (2, n_samples)
+    """
+    assert (
+        audio.ndim == 2
+    ), f"audio must be mono (1, n_samples), got {tuple(audio.shape)}"
+    assert (
+        audio.shape[0] == 1
+    ), f"audio must be mono (1, n_samples), got {tuple(audio.shape)}"
+    stereo = torch.zeros_like(audio).repeat(2, 1)
+    print("stereo: ", tuple(stereo.shape))
+    for ch, ch_vad in enumerate(vad_list):
+        for s, e in ch_vad:
+            s = time_to_samples(s, sample_rate)
+            e = time_to_samples(e, sample_rate)
+            stereo[ch, s:e] = audio[0, s:e]
+    return stereo
+
+
 def log_mel_spectrogram(
     waveform: torch.Tensor,
     n_mels: int = N_MELS,
@@ -76,6 +104,9 @@ def log_mel_spectrogram(
     hop_length: int = HOP_LENGTH,
     sample_rate: int = SAMPLE_RATE,
 ) -> torch.Tensor:
+    """
+    Inspired by OpenAIs whisper repo
+    """
     mel_spec = AT.MelSpectrogram(
         sample_rate=sample_rate,
         n_fft=n_fft,
@@ -91,7 +122,12 @@ def log_mel_spectrogram(
 
 if __name__ == "__main__":
 
-    path = "example/student_long_female_en-US-Wavenet-G.wav"
-    x, sr = load_waveform(path)
+    from vap.data.datamodule import VAPDataset
 
-    info = get_audio_info(path)
+    dset = VAPDataset(path="example/data/sliding_dev.csv")
+
+    ii = 0
+    d = dset[ii]
+    mono = d["waveform"].mean(0).unsqueeze(0)
+    vad_list = dset.df.iloc[ii]["vad_list"]
+    stereo = mono_to_stereo(mono, vad_list, sample_rate)
