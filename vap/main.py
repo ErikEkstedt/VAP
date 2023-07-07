@@ -17,9 +17,6 @@ def main(cfg: DictConfig) -> None:
     module = instantiate(cfg.module)
     datamodule = instantiate(cfg.datamodule)
     trainer = instantiate(cfg.trainer)
-
-    print(datamodule)
-    print()
     trainer.fit(module, datamodule=datamodule)
 
 
