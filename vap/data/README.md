@@ -15,8 +15,11 @@ To train the model using the included `LightningDataModule` we assume that we ha
 * dataset: str, the name of the dataset
     - `switchboard`
 * vad_list: a list containing the voice-activity start/end-times inside of the `start`/`end` times of the row-sample
+    * WARNING: because the model train to predict the next 2s (by default) the VAD-list here actually spans 2s longer than the audio.
+    * end-start = 20 -> vad list covers 22 seconds
+    * Otherwise the last two seconds can't be trained on....
 
-VAD-list example with relative start/end times grounded in the `start`/`end` time of the row sample audio
+VAD-list example with relative start/end times grounded in the `start`/`end` time of the row sample audio. (Note the last times for the second speaker is over 20s as per the warning above).
 ```json
 [
     [
