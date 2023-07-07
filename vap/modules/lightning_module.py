@@ -58,7 +58,7 @@ class VAPModule(L.LightningModule):
         }
         return {"optimizer": self.optim, "lr_scheduler": lr_scheduler}
 
-    def metric_update(self, logits, vad, split: str = "train"):
+    def metric_update(self, logits, vad, split: str = "val"):
         m = getattr(self, f"{split}_metric", None)
         if m:
             probs = self.model.objective.get_probs(logits)
@@ -98,7 +98,10 @@ class VAPModule(L.LightningModule):
             f"{split}_loss", out["vap_loss"], batch_size=batch_size, sync_dist=True
         )
         self.log(
-            f"{split}_loss_va", out["va_loss"], batch_size=batch_size, sync_dist=True
+            f"{split}_loss_va",
+            out["va_loss"],
+            batch_size=batch_size,
+            sync_dist=True,
         )
         return out
 
@@ -120,7 +123,7 @@ class VAPModule(L.LightningModule):
         self.metric_finalize(split="val")
 
     def on_test_epoch_end(self) -> None:
-        self.metric_finalize(split="val")
+        self.metric_finalize(split="test")
 
 
 if __name__ == "__main__":
