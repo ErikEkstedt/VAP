@@ -9,6 +9,9 @@ runs_*/
 /data/
 .DS_Store
 candor/
+example/data/sliding_train.csv
+example/data/sliding_val.csv
+example/data/sliding_test.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
