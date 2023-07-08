@@ -70,10 +70,10 @@ class VAPDataset(Dataset):
         )
 
         return {
-            "session": d["session"],
+            "session": d.get("session", ""),
             "waveform": w,
             "vad": vad,
-            "dataset": d["dataset"],
+            "dataset": d.get("dataset", ""),
         }
 
 
