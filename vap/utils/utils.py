@@ -146,22 +146,26 @@ def get_vad_list_subset(
     subset = [[], []]
     for ch, vv in enumerate(vad_list):
         for s, e in vv:
+            # print(f"Processing segment: [{s}, {e}]")
             if e < start_time:
+                # print("Segment end time is before the specified range.")
                 continue
             if s > end_time:
+                # print("Segment start time is after the specified range.")
                 break
             rel_start = round(s - start_time, 2)
             rel_end = round(e - start_time, 2)
             if start_time <= s and e <= end_time:
+                # print("Segment falls entirely within the specified range.")
                 subset[ch].append([rel_start, rel_end])
             elif s <= start_time and e < end_time:
-                # start before region but end included
+                # print("Segment starts before the range but ends within the range.")
                 subset[ch].append([0, rel_end])
             elif s <= start_time and e >= end_time:
-                # Start before and ends after
+                # print("Segment starts before the range and ends after the range.")
                 subset[ch].append([0, duration])
             elif s < end_time and e >= end_time:
-                # start in region but end after
+                # print("Segment starts within the range but ends after the range.")
                 subset[ch].append([rel_start, duration])
 
     return subset
