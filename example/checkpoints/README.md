@@ -1,6 +1,20 @@
 # Checkpoints
 
 
+## Checkpoints
+
+* Saved during training using [ModelCheckpoint](https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.callbacks.ModelCheckpoint.html#lightning.pytorch.callbacks.ModelCheckpoint)
+* Checkpoint from training was too large for git (>100mb) so I included a zip file
+    - `example/checkpoints/checkpoint.zip`
+    - Simply extract the file to get `example/checkpoints/checkpoint.ckpt`
+
+
+```python 
+from vap.modules.lightning_module import VAPModule
+
+module = VAPModule.load_from_checkpoint("example/checkpoints/checkpoint.ckpt")
+```
+
 ## State dict:
 
 * Requires a model (`torch.nn.Module` or `LightningModule`)
@@ -25,22 +39,11 @@ model = VAP(encoder, transformer)  # the barebones model
 module = VAPModule(model)  # the lightning module
 
 # Load state dict
-sd_model = torch.load("example/checkpoints/model_state_dict.pt")
-sd_module = torch.load("example/checkpoints/module_state_dict.pt")
+sd_model = torch.load("example/checkpoints/VAP_state_dict.pt")
+sd_module = torch.load("example/checkpoints/VAPModule_state_dict.pt")
 
 # Load only state dict
 model.load_state_dict(sd_model)
 module.load_state_dict(sd_module)
 ```
 
-## Checkpoints
-
-* Saved during training using [ModelCheckpoint](https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.callbacks.ModelCheckpoint.html#lightning.pytorch.callbacks.ModelCheckpoint)
-* Extra prefix for model weights in 
-
-
-```python 
-from vap.modules.lightning_module import VAPModule
-
-module = VAPModule.load_from_checkpoint("example/checkpoints/checkpoint.ckpt")
-```
