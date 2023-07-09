@@ -4,7 +4,7 @@ wandb/
 pyrightconfig.json
 runs/
 lightning_logs/
-checkpoints/
+/checkpoints/
 runs_*/
 /data/
 .DS_Store
