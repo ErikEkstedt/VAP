@@ -144,6 +144,21 @@ def plot_vap_probs(
     return ax
 
 
+def plot_vad(
+    x,
+    vad,
+    ax: Axes,
+    ypad: float = 0,
+    color: str = "w",
+    label: Optional[str] = None,
+    **kwargs,
+):
+    assert vad.ndim == 1, f"Expects (N_FRAMES, ) got {vad.shape}"
+    ymin, ymax = ax.get_ylim()
+    scale = ymax - ymin - ypad
+    ax.plot(x, ymin + vad.cpu() * scale, color=color, label=label, **kwargs)
+
+
 if __name__ == "__main__":
 
     from vap.data.datamodule import VAPDataset

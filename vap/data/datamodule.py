@@ -70,10 +70,10 @@ class VAPDataset(Dataset):
         )
 
         return {
-            "session": d["session"],
+            "session": d.get("session", ""),
             "waveform": w,
             "vad": vad,
-            "dataset": d["dataset"],
+            "dataset": d.get("dataset", ""),
         }
 
 
@@ -203,11 +203,26 @@ class VAPDataModule(L.LightningDataModule):
 
 
 if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+    import torch
     from tqdm import tqdm
+    from vap.utils.plot import plot_melspectrogram, plot_vad
 
     dset = VAPDataset(path="example/data/sliding_dev.csv")
 
     d = dset[0]
+
+    # PLOT A DATASAMPLE
+    fig, ax = plt.subplots(2, 1)
+    plot_melspectrogram(d["waveform"], ax=ax[:2])
+    # plot vad.
+    # VAD is by default longer than the audio (for prediction)
+    # So you will probably see zeros at the end where the VAD is defined but the audio not.
+    x = torch.arange(d["vad"].shape[0]) / dset.frame_hz
+    plot_vad(x, d["vad"][:, 0], ax[0])
+    plot_vad(x, d["vad"][:, 1], ax[1])
+    plt.show()
+
     dm = VAPDataModule(
         train_path="example/data/sliding_dev.csv",
         val_path="example/data/sliding_dev.csv",

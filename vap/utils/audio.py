@@ -88,7 +88,6 @@ def mono_to_stereo(
         audio.shape[0] == 1
     ), f"audio must be mono (1, n_samples), got {tuple(audio.shape)}"
     stereo = torch.zeros_like(audio).repeat(2, 1)
-    print("stereo: ", tuple(stereo.shape))
     for ch, ch_vad in enumerate(vad_list):
         for s, e in ch_vad:
             s = time_to_samples(s, sample_rate)
