@@ -147,4 +147,5 @@ dmypy.json
 .vscode
 
 # Audio & VAD LIST files
-example
+example/data/*.csv
+example/vajson/*.json

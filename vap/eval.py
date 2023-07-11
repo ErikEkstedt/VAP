@@ -8,6 +8,7 @@ from vap.modules.lightning_module import VAPModule
 
 log: logging.Logger = logging.getLogger(__name__)
 
+
 # Inspired by:
 # https://github.com/facebookresearch/recipes/blob/main/torchrecipes/audio/source_separation/main.py
 @hydra.main(version_base=None, config_path="conf", config_name="eval_config")
