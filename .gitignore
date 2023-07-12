@@ -143,3 +143,10 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# IDE Settings
+.vscode
+
+# Audio & VAD LIST files
+example/data/*.csv
+example/vajson/*.json
