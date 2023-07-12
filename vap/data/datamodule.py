@@ -3,6 +3,7 @@ import pandas as pd
 import json
 from typing import Optional, Mapping
 
+import torch
 from torch import Tensor
 from torch.utils.data import Dataset, DataLoader
 import lightning as L
@@ -12,6 +13,28 @@ from vap.utils.utils import vad_list_to_onehot
 
 
 SAMPLE = Mapping[str, Tensor]
+
+
+def load_df(path: str) -> pd.DataFrame:
+    def _vl(x):
+        return json.loads(x)
+
+    def _session(x):
+        return str(x)
+
+    converters = {
+        "vad_list": _vl,
+        "session": _session,
+    }
+    return pd.read_csv(path, converters=converters)
+
+
+def force_correct_nsamples(w: Tensor, n_samples: int) -> Tensor:
+    if w.shape[-1] > n_samples:
+        w = w[:, -n_samples:]
+    elif w.shape[-1] < n_samples:
+        w = torch.cat([w, torch.zeros_like(w)[:, : n_samples - w.shape[-1]]], dim=-1)
+    return w
 
 
 class VAPDataset(Dataset):
@@ -24,25 +47,12 @@ class VAPDataset(Dataset):
         mono: bool = False,
     ) -> None:
         self.path = path
-        self.df = self.load_df(path)
+        self.df = load_df(path)
 
         self.sample_rate = sample_rate
         self.frame_hz = frame_hz
         self.horizon = horizon
         self.mono = mono
-
-    def load_df(self, path: str) -> pd.DataFrame:
-        def _vl(x):
-            return json.loads(x)
-
-        def _session(x):
-            return str(x)
-
-        converters = {
-            "vad_list": _vl,
-            "session": _session,
-        }
-        return pd.read_csv(path, converters=converters)
 
     def __len__(self) -> int:
         return len(self.df)
@@ -59,6 +69,13 @@ class VAPDataset(Dataset):
             sample_rate=self.sample_rate,
             mono=self.mono,
         )
+
+        # Ensure correct duration
+        # Some clips (20s) becomes
+        # [2, 320002] insted of [2, 320000]
+        # breaking the batching
+        n_samples = int(dur * self.sample_rate)
+        w = force_correct_nsamples(w, n_samples)
 
         # Stereo Audio
         # Use the vad-list information to convert mono to stereo

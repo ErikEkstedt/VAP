@@ -17,6 +17,17 @@ def main(cfg: DictConfig) -> None:
     module = instantiate(cfg.module)
     datamodule = instantiate(cfg.datamodule)
     trainer = instantiate(cfg.trainer)
+
+    if getattr(cfg, "pretrained_checkpoint_path", None):
+        module = module.load_from_checkpoint(
+            checkpoint_path=cfg.pretrained_checkpoint_path
+        )
+        print("Loaded from checkpoint: ", cfg.pretrained_checkpoint_path)
+        if getattr(cfg.module, "val_metric", False):
+            metric = instantiate(cfg.module.val_metric)
+            module.val_metric = metric
+            print("Added val metrics")
+        input("Press enter to continue: ")
     trainer.fit(module, datamodule=datamodule)
 
 
