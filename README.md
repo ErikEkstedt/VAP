@@ -49,6 +49,8 @@ Training is done with the `main.py` script that uses [hydra](hydra.cc), read mor
 Look into the default config in [vap/conf/default_config.yaml](vap/conf/default_config.yaml) to get started. Entries that exists in the config can be
 changed by `pyton vap/main.py datamodule.num_workers` but other entries you could add requires a '+' sign `python vap/main.py +trainer.limit_val_batches=0.5`.
 
+* **SEE `/scripts/finetune.bash` or `/scripts/train.bash` or `/scripts/eval.bash`**
+
 As an example:
 ```bash
 python vap/main.py \ 
@@ -56,6 +58,44 @@ python vap/main.py \
     datamodule.val_path=example/data/sliding_val.csv \ 
     datamodule.num_workers=12 \ 
     datamodule.batch_size=10
+```
+
+#### Load checkpoint
+
+Both the `state_dict.pt` and `checkpoint.ckpt` are 'loadable' with `torch.load()` the extensions are quiet arbitrary.
+
+```python 
+from vap.modules.lightning_module import VAPModule
+
+# Load entire module (includes metrics, optimizers, epochs, ...)
+module = VAPModule.load_from_checkpoint("/PATH/TO/checkpoint.ckpt")
+# type(module) -> vap.modules.lightning_module.VAPModule
+
+# Load only the `VAP` model
+model = VAPModule.load_model("/PATH/TO/checkpoint.ckpt")
+# type(model) -> vap.modules.VAP.VAP
+
+# Load raw state dict (model)
+from vap.modules.VAP import VAP
+from vap.modules.encoder import EncoderCPC
+from vap.modules.modules import TransformerStereo
+
+# WARNING: The model requires `encoder` and `transformer` modules as input
+# The correct parameters sizes are required.
+encoder = EncoderCPC()
+transformer = TransformerStereo()
+model = VAP(encoder, transformer)  # the barebones model
+model.load_state_dict("/PATH/TO/state_dict.pt")
+```
+
+## Barebones parameters
+
+* **SEE code in `/scripts/checkpoint_to_state_dict.py`**
+
+```bash 
+python scripts/checkpoint_to_state_dict.py \ 
+    --checkpoint runs_new/VAP2/lh55ur9z/checkpoints/epoch=5-step=16085.ckpt \ 
+    --state_dict /OUTPUTP/TO/state_dict.pt # default model_state_dict.py
 ```
 
 ## Citation
