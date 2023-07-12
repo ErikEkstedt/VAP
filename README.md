@@ -104,7 +104,7 @@ python scripts/checkpoint_to_state_dict.py \
 @inproceedings{ekstedt22_interspeech,
   author={Erik Ekstedt and Gabriel Skantze},
   title={{Voice Activity Projection: Self-supervised Learning of Turn-taking Events}},
-  year=2022,
+  year={2022},
   booktitle={Proc. Interspeech 2022},
   pages={5190--5194},
   doi={10.21437/Interspeech.2022-10955}
@@ -113,15 +113,14 @@ python scripts/checkpoint_to_state_dict.py \
 
 ```latex
 @inproceedings{ekstedt-skantze-2022-much,
-    title = "How Much Does Prosody Help Turn-taking? Investigations using Voice Activity Projection Models",
-    author = "Ekstedt, Erik  and
-      Skantze, Gabriel",
-    booktitle = "Proceedings of the 23rd Annual Meeting of the Special Interest Group on Discourse and Dialogue",
-    month = sep,
-    year = "2022",
-    address = "Edinburgh, UK",
-    publisher = "Association for Computational Linguistics",
-    url = "https://aclanthology.org/2022.sigdial-1.51",
-    pages = "541--551",
+    title = {How Much Does Prosody Help Turn-taking? Investigations using Voice Activity Projection Models},
+    author={Erik Ekstedt and Gabriel Skantze},
+    booktitle = {Proceedings of the 23rd Annual Meeting of the Special Interest Group on Discourse and Dialogue},
+    month = {9},
+    year = {2022},
+    address = {Edinburgh, UK},
+    publisher = {Association for Computational Linguistics},
+    url = {https://aclanthology.org/2022.sigdial-1.51},
+    pages = {541--551},
 }
 ```
