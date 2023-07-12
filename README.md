@@ -47,7 +47,7 @@ A state-dict tensor is included in the `examples/` folder:
 
 Training is done with the `main.py` script that uses [hydra](hydra.cc), read more about the data (csv-files) in [vap/data/README.md](vap/data/README.md).
 Look into the default config in [vap/conf/default_config.yaml](vap/conf/default_config.yaml) to get started. Entries that exists in the config can be
-changed by `pyton vap/main.py datamodule.num_workers` but other entries you could add requires a '+' sign `python vap/main.py +trainer.limit_val_batches=0.5`.
+changed by `python vap/main.py datamodule.num_workers` but other entries you could add requires a '+' sign `python vap/main.py +trainer.limit_val_batches=0.5`.
 
 * **SEE `/scripts/finetune.bash` or `/scripts/train.bash` or `/scripts/eval.bash`**
 
@@ -62,7 +62,7 @@ python vap/main.py \
 
 #### Load checkpoint
 
-Both the `state_dict.pt` and `checkpoint.ckpt` are 'loadable' with `torch.load()` the extensions are quiet arbitrary.
+Both the `state_dict.pt` and `checkpoint.ckpt` are 'loadable' with `torch.load()` the extensions are arbitrary.
 
 ```python 
 from vap.modules.lightning_module import VAPModule
