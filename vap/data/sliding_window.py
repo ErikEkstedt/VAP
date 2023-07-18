@@ -68,10 +68,8 @@ def sliding_window(
     """
     samples = []
     starts = get_sliding_windows(vad_list, duration, overlap)
-    print(starts)
     for start in starts:
         end = start + duration
-        print(start, end)
         vad_list_subset = get_vad_list_subset(vad_list, start, end + horizon)
         samples.append(
             {
