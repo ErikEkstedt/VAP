@@ -55,7 +55,6 @@ def get_sliding_windows(
     # Get the starting times for each window
     starts = torch.arange(start, end, step)[:n_windows].tolist()
     # starts = [start + i * step for i in range(n_windows)]
-    print(starts)
 
     return starts
 
