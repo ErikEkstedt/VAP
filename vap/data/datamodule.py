@@ -107,6 +107,7 @@ class VAPDataModule(L.LightningDataModule):
         batch_size: int = 4,
         num_workers: int = 0,
         pin_memory: bool = True,
+        prefetch_factor: int = 2,
         **kwargs,
     ):
         super().__init__()
@@ -126,6 +127,7 @@ class VAPDataModule(L.LightningDataModule):
         self.batch_size = batch_size
         self.pin_memory = pin_memory
         self.num_workers = num_workers
+        self.prefetch_factor = prefetch_factor
 
     def __repr__(self):
         s = self.__class__.__name__
@@ -197,6 +199,7 @@ class VAPDataModule(L.LightningDataModule):
             batch_size=self.batch_size,
             pin_memory=self.pin_memory,
             num_workers=self.num_workers,
+            prefetch_factor=self.prefetch_factor,
             shuffle=True,
         )
 
@@ -206,6 +209,7 @@ class VAPDataModule(L.LightningDataModule):
             batch_size=self.batch_size,
             pin_memory=self.pin_memory,
             num_workers=self.num_workers,
+            prefetch_factor=self.prefetch_factor,
             shuffle=False,
         )
 
@@ -215,6 +219,7 @@ class VAPDataModule(L.LightningDataModule):
             batch_size=self.batch_size,
             pin_memory=self.pin_memory,
             num_workers=self.num_workers,
+            prefetch_factor=self.prefetch_factor,
             shuffle=False,
         )
 

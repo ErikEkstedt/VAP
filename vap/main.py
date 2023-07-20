@@ -1,5 +1,7 @@
+import torch
 import logging
 import hydra
+import os
 from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
 from lightning import seed_everything
@@ -28,6 +30,9 @@ def main(cfg: DictConfig) -> None:
             module.val_metric = metric
             print("Added val metrics")
         input("Press enter to continue: ")
+
+    print("CPUs: ", os.cpu_count())
+    print("Pytorch Threads: ", torch.get_num_threads())
     trainer.fit(module, datamodule=datamodule)
 
 
