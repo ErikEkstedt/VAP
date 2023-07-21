@@ -35,15 +35,15 @@ class VAP(nn.Module):
         self.vap_head = nn.Linear(self.dim, self.objective.n_classes)
 
     @property
-    def horizon_time(self):
+    def horizon_time(self) -> float:
         return self.objective.horizon_time
 
     @property
-    def sample_rate(self):
+    def sample_rate(self) -> int:
         return self.encoder.sample_rate
 
     @property
-    def device(self):
+    def device(self) -> torch.device:
         return next(self.parameters()).device
 
     def extract_labels(self, vad: Tensor) -> Tensor:
@@ -181,6 +181,7 @@ def build_model():
 if __name__ == "__main__":
 
     from vap.modules.encoder import EncoderCPC
+
     # from vap.modules.encoder_hubert import EncoderHubert
     from vap.modules.modules import TransformerStereo
 

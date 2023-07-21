@@ -48,6 +48,8 @@ audio_path,start,end,vad_list,session,dataset
 /PATH/AUDIO.wav,0.0,20.0,"[[[1.16, 1.43], [1.73, 3.17], [3.27, 3.74], [3.94, 4.83], [5.41, 6.8]], [[0.04, 0.28], [5.35, 5.83], [7.18, 9.3], [10.17, 15.12], [16.2, 17.17], [18.08, 19.03], [20.4, 20.75], [21.2, 22.0]]]",4637,switchboard
 ```
 
+## vap/data/datamodule.py
+
 ### Dataset
 ```python
 
@@ -90,4 +92,27 @@ print("Val: ", len(dm.val_dset))
 dloader = dm.train_dataloader()
 for batch in tqdm(dloader, total=len(dloader)):
     pass
+```
+
+## vap/data/dset_event.py
+
+Run this script to extract events based on vad- and audio-paths. The code also containe `VAPClassificationDataset` used for evaluation.
+
+```bash
+python vap/data/dset_event.py \
+    --audio_vad_path /PATH/TO/audio_vad.json \
+    --savepath example/classification_hs.csv \
+    --pre_cond_time 1 \
+    --post_cond_time 2 \
+    --min_silence_time 0.1 \
+```
+
+Then run evaluation using the `vap/eval_events.py` code.
+
+```bash
+python vap/eval_events.py \
+    --checkpoint example/checkpoints/checkpoint.ckpt \
+    --csv example/classification_hs.csv \
+    --savepath results/classification_hs_res.csv \
+    --plot  # omit if on server
 ```
