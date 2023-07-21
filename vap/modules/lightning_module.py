@@ -18,6 +18,8 @@ from vap.utils.utils import (
 )
 
 
+everything_deterministic()
+
 Batch = Mapping[str, Tensor]
 
 

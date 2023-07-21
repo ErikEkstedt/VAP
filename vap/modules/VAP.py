@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
-from typing import Any, Optional, Mapping
+from typing import Optional
 
 from vap.objective import VAPObjective
 from vap.utils.utils import (
@@ -37,6 +37,14 @@ class VAP(nn.Module):
     @property
     def horizon_time(self):
         return self.objective.horizon_time
+
+    @property
+    def sample_rate(self):
+        return self.encoder.sample_rate
+
+    @property
+    def device(self):
+        return next(self.parameters()).device
 
     def extract_labels(self, vad: Tensor) -> Tensor:
         return self.objective.get_labels(vad)
@@ -173,9 +181,15 @@ def build_model():
 if __name__ == "__main__":
 
     from vap.modules.encoder import EncoderCPC
+    # from vap.modules.encoder_hubert import EncoderHubert
     from vap.modules.modules import TransformerStereo
 
     encoder = EncoderCPC()
+    # encoder = EncoderHubert()
     transformer = TransformerStereo()
+
     model = VAP(encoder, transformer)
     print(model)
+
+    x = torch.randn(1, 2, 32000)
+    out = model(x)
