@@ -2,6 +2,7 @@ from os.path import exists
 import pandas as pd
 import json
 from typing import Optional, Mapping
+import matplotlib.pyplot as plt
 
 import torch
 from torch import Tensor
@@ -10,6 +11,7 @@ import lightning as L
 
 from vap.utils.audio import load_waveform, mono_to_stereo
 from vap.utils.utils import vad_list_to_onehot
+from vap.utils.plot import plot_melspectrogram, plot_vad
 
 
 SAMPLE = Mapping[str, Tensor]
@@ -35,6 +37,23 @@ def force_correct_nsamples(w: Tensor, n_samples: int) -> Tensor:
     elif w.shape[-1] < n_samples:
         w = torch.cat([w, torch.zeros_like(w)[:, : n_samples - w.shape[-1]]], dim=-1)
     return w
+
+
+def plot_dset_sample(d):
+    """
+    VAD is by default longer than the audio (prediction horizon)
+    So you will see zeros at the end where the VAD is defined but the audio not.
+    """
+    fig, ax = plt.subplots(2, 1, figsize=(9, 6))
+    ax[0].set_title(d["session"])
+    plot_melspectrogram(d["waveform"], ax=ax[:2])
+    x = torch.arange(d["vad"].shape[0]) / dset.frame_hz
+    plot_vad(x, d["vad"][:, 0], ax[0], ypad=2, label="VAD 0")
+    plot_vad(x, d["vad"][:, 1], ax[1], ypad=2, label="VAD 1")
+    _ = [a.legend() for a in ax]
+    ax[-1].set_xlabel("Time (s)")
+    plt.tight_layout()
+    plt.show()
 
 
 class VAPDataset(Dataset):
@@ -141,6 +160,7 @@ class VAPDataModule(L.LightningDataModule):
         s += f"\n\tbatch_size: {self.batch_size}"
         s += f"\n\tpin_memory: {self.pin_memory}"
         s += f"\n\tnum_workers: {self.num_workers}"
+        s += f"\n\tprefetch_factor: {self.prefetch_factor}"
         return s
 
     def prepare_data(self):
@@ -225,39 +245,39 @@ class VAPDataModule(L.LightningDataModule):
 
 
 if __name__ == "__main__":
-    import matplotlib.pyplot as plt
+
+    from argparse import ArgumentParser
     import torch
     from tqdm import tqdm
-    from vap.utils.plot import plot_melspectrogram, plot_vad
 
-    dset = VAPDataset(path="example/data/sliding_dev.csv")
+    parser = ArgumentParser()
+    parser.add_argument("--csv_path", type=str, default="data/sliding_window_dset.csv")
+    parser.add_argument("--batch_size", type=int, default=10)
+    parser.add_argument("--num_workers", type=int, default=0)
+    parser.add_argument("--prefetch_factor", type=int, default=None)
+    parser.add_argument("--single", action="store_true")
+    args = parser.parse_args()
 
-    d = dset[0]
-
-    # PLOT A DATASAMPLE
-    fig, ax = plt.subplots(2, 1)
-    plot_melspectrogram(d["waveform"], ax=ax[:2])
-    # plot vad.
-    # VAD is by default longer than the audio (for prediction)
-    # So you will probably see zeros at the end where the VAD is defined but the audio not.
-    x = torch.arange(d["vad"].shape[0]) / dset.frame_hz
-    plot_vad(x, d["vad"][:, 0], ax[0])
-    plot_vad(x, d["vad"][:, 1], ax[1])
-    plt.show()
-
-    dm = VAPDataModule(
-        train_path="example/data/sliding_dev.csv",
-        val_path="example/data/sliding_dev.csv",
-        test_path="example/data/sliding_dev.csv",
-        batch_size=4,
-        num_workers=2,
-    )
-    dm.prepare_data()
-    dm.setup("fit")
-    print(dm)
-    print("Train: ", len(dm.train_dset))
-    print("Val: ", len(dm.val_dset))
-
-    dloader = dm.train_dataloader()
-    for batch in tqdm(dloader, total=len(dloader)):
-        pass
+    if args.single:
+        dset = VAPDataset(path=args.csv_path)
+        idx = int(torch.randint(0, len(dset), (1,)).item())
+        d = dset[idx]
+        plot_dset_sample(d)
+    else:
+        dm = VAPDataModule(
+            # train_path="data/splits/sliding_window_dset_train.csv",
+            # val_path="data/splits/sliding_window_dset_val.csv",
+            test_path=args.csv_path,
+            batch_size=args.batch_size,  # as much as fit on gpu with model and max cpu cores
+            num_workers=args.num_workers,  # number cpu cores
+            prefetch_factor=args.prefetch_factor,  # how many batches to prefetch
+        )
+        dm.prepare_data()
+        dm.setup("test")
+        print(dm)
+        print("VAPDataModule: ", len(dm.test_dset))
+        dloader = dm.test_dataloader()
+        for batch in tqdm(
+            dloader, desc="Running VAPDatamodule (Training wont be faster than this...)"
+        ):
+            pass

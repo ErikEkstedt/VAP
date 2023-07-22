@@ -15,25 +15,13 @@ VAD_LIST = list[list[list[float]]]
 
 
 """
-Example of the file of the `--audio_vad_path`
+Example of the file of the `--audio_vad_csv`
 
-```json
-[
-    {
-        "audio_path": "/home/erik/projects/data/Fisher/fisher_eng_tr_sp_d6/audio/046/fe_03_04642.wav",
-        "vad_path": "/home/erik/projects/data/Fisher/vad_lists/04642.json",
-    },
-    {
-        "audio_path": "/home/erik/projects/data/Fisher/fisher_eng_tr_sp_d6/audio/046/fe_03_04644.wav",
-        "vad_path": "/home/erik/projects/data/Fisher/vad_lists/04644.json",
-    },
-    {
-        "audio_path": "/home/erik/projects/data/Fisher/fisher_eng_tr_sp_d6/audio/046/fe_03_04646.wav",
-        "vad_path": "/home/erik/projects/data/Fisher/vad_lists/04646.json",
-    },
-]
+```csv
+audio_path,vad_path
+/audio/007/fe_03_00785.wav,/vad_lists/fe_03_00785.json
+/audio/007/fe_03_00705.wav,/vad_lists/fe_03_00705.json
 ```
-write_json(audio_vad, "example/data/audio_vad_example.json")
 """
 
 
@@ -144,7 +132,7 @@ def extract_ipu_classification(
 
 def create_event_dset(
     audio_vad_path: str,
-    savepath: str,
+    filename: str,
     pre_cond_time: float = 1.0,  # single speaker prior to silence
     post_cond_time: float = 2.0,  # single speaker post silence
     min_silence_time: float = 0.1,  # minimum reaction time / silence duration
@@ -165,24 +153,27 @@ def create_event_dset(
         frame_hz=50,
     )
 
-    audio_vad = read_json(audio_vad_path)
-    all_dfs = []
-    for dialog in tqdm.tqdm(audio_vad, desc="Extracting event dataset"):
-        vad_list = read_json(dialog["vad_path"])
+    # read csv
+    audio_vad = pd.read_csv(audio_vad_path)
 
+    all_dfs = []
+    for _, row in tqdm.tqdm(
+        audio_vad.iterrows(), total=len(audio_vad), desc="Extracting event dataset"
+    ):
+        vad_list = read_json(row.vad_path)
         if ipu_based_events:
             c = extract_ipu_classification(vad_list, fill_time=min_silence_time)
         else:
             c = extract_shift_holds(vad_list, eventer)
-        c["audio_path"] = dialog["audio_path"]
-        c["vad_path"] = dialog["vad_path"]
+        c["audio_path"] = row.audio_path
+        c["vad_path"] = row.vad_path
         all_dfs.append(c)
     c = pd.concat(all_dfs, ignore_index=True)
 
-    Path(dirname(savepath)).mkdir(parents=True, exist_ok=True)
-    c.to_csv(savepath, index=False)
+    Path(filename).parent.mkdir(parents=True, exist_ok=True)
+    c.to_csv(filename, index=False)
     ev_type = "IPU" if ipu_based_events else "HoldShift"
-    print(f"Saved {len(c)} {ev_type} -> ", savepath)
+    print(f"Saved {len(c)} {ev_type} -> ", filename)
 
 
 class VAPClassificationDataset(Dataset):
@@ -257,17 +248,23 @@ if __name__ == "__main__":
     from argparse import ArgumentParser
 
     parser = ArgumentParser()
-    parser.add_argument("--audio_vad_path", type=str, required=True)
-    parser.add_argument("--savepath", type=str, required=True)
+    parser.add_argument("--audio_vad_csv", type=str)
+    parser.add_argument(
+        "--filename", type=str, default="data/classification/audio_vad_hs.csv"
+    )
     parser.add_argument("--pre_cond_time", type=float, default=1.0)
     parser.add_argument("--post_cond_time", type=float, default=2.0)
     parser.add_argument("--min_silence_time", type=float, default=0.1)
     parser.add_argument("--ipu_based_events", action="store_true")
     args = parser.parse_args()
 
+    args.audio_vad_csv = "data/audio_vad.csv"
+    for k, v in vars(args).items():
+        print(f"{k}: {v}")
+
     create_event_dset(
-        audio_vad_path=args.audio_vad_path,  # "example/data/audio_vad_example.json",
-        savepath=args.savepath,  # "example/classification_hs.csv",
+        audio_vad_path=args.audio_vad_csv,  # "example/data/audio_vad_example.json",
+        filename=args.filename,  # "example/classification_hs.csv",
         pre_cond_time=args.pre_cond_time,
         post_cond_time=args.post_cond_time,
         min_silence_time=args.min_silence_time,
