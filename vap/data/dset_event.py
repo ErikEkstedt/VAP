@@ -132,7 +132,7 @@ def extract_ipu_classification(
 
 def create_event_dset(
     audio_vad_path: str,
-    filename: str,
+    output: str,
     pre_cond_time: float = 1.0,  # single speaker prior to silence
     post_cond_time: float = 2.0,  # single speaker post silence
     min_silence_time: float = 0.1,  # minimum reaction time / silence duration
@@ -170,10 +170,10 @@ def create_event_dset(
         all_dfs.append(c)
     c = pd.concat(all_dfs, ignore_index=True)
 
-    Path(filename).parent.mkdir(parents=True, exist_ok=True)
-    c.to_csv(filename, index=False)
+    Path(output).parent.mkdir(parents=True, exist_ok=True)
+    c.to_csv(output, index=False)
     ev_type = "IPU" if ipu_based_events else "HoldShift"
-    print(f"Saved {len(c)} {ev_type} -> ", filename)
+    print(f"Saved {len(c)} {ev_type} -> ", output)
 
 
 class VAPClassificationDataset(Dataset):
@@ -250,7 +250,7 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--audio_vad_csv", type=str)
     parser.add_argument(
-        "--filename", type=str, default="data/classification/audio_vad_hs.csv"
+        "--output", type=str, default="data/classification/audio_vad_hs.csv"
     )
     parser.add_argument("--pre_cond_time", type=float, default=1.0)
     parser.add_argument("--post_cond_time", type=float, default=2.0)
@@ -258,13 +258,12 @@ if __name__ == "__main__":
     parser.add_argument("--ipu_based_events", action="store_true")
     args = parser.parse_args()
 
-    args.audio_vad_csv = "data/audio_vad.csv"
     for k, v in vars(args).items():
         print(f"{k}: {v}")
 
     create_event_dset(
         audio_vad_path=args.audio_vad_csv,  # "example/data/audio_vad_example.json",
-        filename=args.filename,  # "example/classification_hs.csv",
+        output=args.output,  # "example/classification_hs.csv",
         pre_cond_time=args.pre_cond_time,
         post_cond_time=args.post_cond_time,
         min_silence_time=args.min_silence_time,

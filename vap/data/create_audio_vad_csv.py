@@ -10,7 +10,7 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--audio_dir", type=str)
     parser.add_argument("--vad_dir", type=str)
-    parser.add_argument("--filename", type=str, default="data/audio_vad.csv")
+    parser.add_argument("--output", type=str, default="data/audio_vad.csv")
     args = parser.parse_args()
 
     for k, v in vars(args).items():
@@ -40,7 +40,7 @@ if __name__ == "__main__":
         print("See -> /tmp/create_audio_vad_json_errors.txt")
         print()
 
-    Path(args.filename).parent.mkdir(parents=True, exist_ok=True)
+    Path(args.output).parent.mkdir(parents=True, exist_ok=True)
     df = pd.DataFrame(data)
-    df.to_csv(args.filename, index=False)
-    print("Saved -> ", args.filename)
+    df.to_csv(args.output, index=False)
+    print("Saved -> ", args.output)

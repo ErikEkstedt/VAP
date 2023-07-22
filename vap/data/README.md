@@ -23,7 +23,7 @@
     python vap/data/create_audio_vad_csv.py \
         --audio_dir /PATH/TO/WAV_FILES_DIR \  # recursive glob
         --vad_dir PATH/TO/VAD_LIST_DIR \  # matching the names of audio
-        --filename data/audio_vad.json
+        --output data/audio_vad.csv
     ```
     * Example `--audio_vad.csv`
     ```csv
@@ -73,7 +73,12 @@
     - [`vap/data/dset_event.py`](vap/data/dset_event.py)
     - Run:
     ```bash
-
+    python vap/data/dset_event.py \
+        --audio_vad_csv /data/audio_vad.csv \
+        --output data/classification/audio_vad_hs.csv \
+        --pre_cond_time 1 \
+        --post_cond_time 2 \
+        --min_silence_time 0.1
     ```
 
 ## 3. Dataset CSV
@@ -197,7 +202,7 @@ Run this script to extract events based on vad- and audio-paths. The code also c
 ```bash
 python vap/data/dset_event.py \
     --audio_vad_csv /data/audio_vad.csv \
-    --savepath data/classification/audio_vad_hs.csv \
+    --output data/classification/audio_vad_hs.csv \
     --pre_cond_time 1 \
     --post_cond_time 2 \
     --min_silence_time 0.1
@@ -209,6 +214,6 @@ Then run evaluation using the `vap/eval_events.py` code.
 python vap/eval_events.py \
     --checkpoint example/checkpoints/checkpoint.ckpt \
     --csv example/classification_hs.csv \
-    --savepath results/classification_hs_res.csv \
+    --output results/classification_hs_res.csv \
     --plot  # omit if on server
 ```

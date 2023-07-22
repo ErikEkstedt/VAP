@@ -1,5 +1,6 @@
 # Custom
 outputs/
+tmp/
 wandb/
 pyrightconfig.json
 runs/
@@ -13,6 +14,8 @@ candor/
 example/data/sliding_train.csv
 example/data/sliding_val.csv
 example/data/sliding_test.csv
+example/data/*.csv
+example/vajson/*.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -147,6 +150,3 @@ dmypy.json
 # IDE Settings
 .vscode
 
-# Audio & VAD LIST files
-example/data/*.csv
-example/vajson/*.json

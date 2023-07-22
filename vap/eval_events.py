@@ -337,9 +337,9 @@ if __name__ == "__main__":
 
     parser = ArgumentParser()
     parser.add_argument("--checkpoint", type=str, default=None)
+    parser.add_argument("--output", type=str, default="event_results.csv")
     parser.add_argument("--csv", type=str, default=None)
     parser.add_argument("--result_csv", type=str, default=None)
-    parser.add_argument("--savepath", type=str, default="event_results.csv")
     parser.add_argument("--context", type=float, default=20)
     parser.add_argument("--region_sil_pad_time", type=float, default=0.2)
     parser.add_argument("--region_duration", type=float, default=0.2)
@@ -424,9 +424,9 @@ if __name__ == "__main__":
         columns=["p_fut", "p_now", "p1", "p2", "p3", "p4", "label", "targets"],
         data=preds,
     )
-    Path(dirname(args.savepath)).mkdir(exist_ok=True, parents=True)
-    df.to_csv(args.savepath, index=False)
-    print("Saved results -> ", args.savepath)
+    Path(dirname(args.output)).mkdir(exist_ok=True, parents=True)
+    df.to_csv(args.output, index=False)
+    print("Saved results -> ", args.output)
 
     print("Balanced ACCURACY")
     print("type: bacc, threshold")
