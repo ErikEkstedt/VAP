@@ -8,7 +8,7 @@ import tqdm
 
 from vap.data.datamodule import force_correct_nsamples
 from vap.utils.audio import load_waveform
-from vap.utils.utils import vad_list_to_onehot, read_json
+from vap.utils.utils import vad_list_to_onehot, read_json, invalid_vad_list
 from vap.events.events import HoldShift
 
 VAD_LIST = list[list[list[float]]]
@@ -23,6 +23,33 @@ audio_path,vad_path
 /audio/007/fe_03_00705.wav,/vad_lists/fe_03_00705.json
 ```
 """
+
+
+def get_vad_list_min_max(vad_list: VAD_LIST, limit="max"):
+    ch0 = vad_list[0]
+    ch1 = vad_list[1]
+    if limit == "max":
+        ch0_max = -1
+        if len(ch0) > 0:
+            ch0_max = ch0[-1][-1]
+
+        ch1_max = -1
+        if len(ch1) > 0:
+            ch1_max = ch1[-1][-1]
+
+        m = max(ch0_max, ch1_max)
+
+    else:
+        ch0_min = 99999999
+        if len(ch0) > 0:
+            ch0_min = ch0[0][0]
+
+        ch1_min = 99999999
+        if len(ch1) > 0:
+            ch1_min = ch1[0][0]
+
+        m = min(ch0_min, ch1_min)
+    return m
 
 
 def extract_shift_holds(vad_list: VAD_LIST, eventer: HoldShift) -> pd.DataFrame:
@@ -130,7 +157,7 @@ def extract_ipu_classification(
     return pd.DataFrame(ipu_ends)
 
 
-def create_event_dset(
+def create_classification_dset(
     audio_vad_path: str,
     output: str,
     pre_cond_time: float = 1.0,  # single speaker prior to silence
@@ -157,10 +184,16 @@ def create_event_dset(
     audio_vad = pd.read_csv(audio_vad_path)
 
     all_dfs = []
+    skipped = []
     for _, row in tqdm.tqdm(
         audio_vad.iterrows(), total=len(audio_vad), desc="Extracting event dataset"
     ):
         vad_list = read_json(row.vad_path)
+
+        if invalid_vad_list(vad_list):
+            skipped.append(row.vad_path)
+            continue
+
         if ipu_based_events:
             c = extract_ipu_classification(vad_list, fill_time=min_silence_time)
         else:
@@ -169,6 +202,13 @@ def create_event_dset(
         c["vad_path"] = row.vad_path
         all_dfs.append(c)
     c = pd.concat(all_dfs, ignore_index=True)
+
+    if len(skipped) > 0:
+        print("Skipped: ", len(skipped))
+        with open("/tmp/dset_event_skipped_vad.txt", "w") as f:
+            f.write("\n".join(skipped))
+        print("See -> /tmp/dset_event_skipped_vad.txt")
+        print()
 
     Path(output).parent.mkdir(parents=True, exist_ok=True)
     c.to_csv(output, index=False)
@@ -261,7 +301,7 @@ if __name__ == "__main__":
     for k, v in vars(args).items():
         print(f"{k}: {v}")
 
-    create_event_dset(
+    create_classification_dset(
         audio_vad_path=args.audio_vad_csv,  # "example/data/audio_vad_example.json",
         output=args.output,  # "example/classification_hs.csv",
         pre_cond_time=args.pre_cond_time,

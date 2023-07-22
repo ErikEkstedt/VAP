@@ -276,6 +276,27 @@ def vad_omit_spikes(
     return vad
 
 
+def invalid_vad_list(vad_list: VAD_LIST) -> bool:
+    """
+    Checks if the vad_list is invalid
+    """
+
+    if vad_list is None:
+        return True
+
+    # If we don't have at least two channels
+    # we can't know who it belongs to.
+    if len(vad_list) != 2:
+        return True
+
+    # Check that not both channels are empty
+    channel_0 = vad_list[0]
+    channel_1 = vad_list[1]
+    if len(channel_0) == 0 and len(channel_1) == 0:
+        return True
+    return False
+
+
 ################################################
 # File system
 ################################################

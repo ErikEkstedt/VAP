@@ -4,7 +4,7 @@ import torch
 import pandas as pd
 import tqdm
 
-from vap.utils.utils import read_json, get_vad_list_subset
+from vap.utils.utils import read_json, get_vad_list_subset, invalid_vad_list
 
 VAD_LIST = list[list[list[float]]]
 
@@ -38,7 +38,7 @@ def get_sliding_windows(
 
 
 def sliding_window(
-    vad_path: str,
+    vad_list: VAD_LIST,
     audio_path: str,
     duration: float = 20,
     overlap: float = 5,
@@ -47,7 +47,7 @@ def sliding_window(
     """
     Get overlapping samples from a vad_list of a conversation
     """
-    vad_list = read_json(vad_path)
+
     starts = get_sliding_windows(vad_list, duration, overlap)
     samples = []
     for start in starts:
@@ -60,10 +60,43 @@ def sliding_window(
                 "start": start,
                 "end": end,
                 "vad_list": vad_list_subset,
-                "vad_path": vad_path,
             }
         )
     return samples
+
+
+def main(args):
+    df = pd.read_csv(args.audio_vad_csv)
+    data = []
+    skipped = []
+    for _, row in tqdm.tqdm(
+        df.iterrows(), total=len(df), desc="Create sliding window dataset"
+    ):
+        vad_list = read_json(row.vad_path)
+        if invalid_vad_list(vad_list):
+            skipped.append(row.vad_path)
+            continue
+
+        session_samples = sliding_window(
+            vad_list=vad_list,
+            audio_path=row.audio_path,
+            duration=args.duration,
+            overlap=args.overlap,
+            horizon=args.horizon,
+        )
+        data.extend(session_samples)
+
+    if len(skipped) > 0:
+        print("Skipped: ", len(skipped))
+        with open("/tmp/sliding_window_skipped_vad.txt", "w") as f:
+            f.write("\n".join(skipped))
+        print("See -> /tmp/sliding_window_skipped_vad.txt")
+        print()
+
+    print(f"Extracted {len(data)} segments from {len(df)} session.")
+    Path(args.output).parent.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(data).to_csv(args.output, index=False)
+    print(f"Saved to {args.output}")
 
 
 if __name__ == "__main__":
@@ -81,22 +114,4 @@ if __name__ == "__main__":
     for k, v in vars(args).items():
         print(f"{k}: {v}")
 
-    df = pd.read_csv(args.audio_vad_csv)
-
-    data = []
-    for index, row in tqdm.tqdm(
-        df.iterrows(), total=len(df), desc="Create sliding window dataset"
-    ):
-        session_samples = sliding_window(
-            vad_path=row.vad_path,
-            audio_path=row.audio_path,
-            duration=args.duration,
-            overlap=args.overlap,
-            horizon=args.horizon,
-        )
-        data.extend(session_samples)
-
-    print(f"Extracted {len(data)} segments from {len(df)} session.")
-    Path(args.output).parent.mkdir(parents=True, exist_ok=True)
-    pd.DataFrame(data).to_csv(args.output, index=False)
-    print(f"Saved to {args.output}")
+    main(args)
