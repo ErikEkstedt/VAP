@@ -9,6 +9,7 @@ from lightning.pytorch import Trainer
 
 log: logging.Logger = logging.getLogger(__name__)
 
+torch.set_float32_matmul_precision(precision="medium")
 # Inspired by:
 # https://github.com/facebookresearch/recipes/blob/main/torchrecipes/audio/source_separation/main.py
 @hydra.main(version_base=None, config_path="conf", config_name="default_config")
