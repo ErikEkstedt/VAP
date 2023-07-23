@@ -218,13 +218,6 @@ class VAP(nn.Module):
         return vad
 
 
-def build_model():
-    encoder = EncoderCPC()
-    transformer = TransformerStereo()
-    model = VAP(encoder, transformer)
-    return model
-
-
 if __name__ == "__main__":
 
     from vap.modules.encoder import EncoderCPC
