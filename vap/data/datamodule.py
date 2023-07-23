@@ -1,13 +1,14 @@
-from os.path import exists
-import pandas as pd
-import json
-from typing import Optional, Mapping
-import matplotlib.pyplot as plt
-
 import torch
 from torch import Tensor
 from torch.utils.data import Dataset, DataLoader
 import lightning as L
+
+from os.path import exists
+import pandas as pd
+import json
+from typing import Optional, Mapping, Any
+import matplotlib.pyplot as plt
+
 
 from vap.utils.audio import load_waveform, mono_to_stereo
 from vap.utils.utils import vad_list_to_onehot
@@ -32,11 +33,29 @@ def load_df(path: str) -> pd.DataFrame:
 
 
 def force_correct_nsamples(w: Tensor, n_samples: int) -> Tensor:
+    if w.shape[-1] == n_samples:
+        return w
     if w.shape[-1] > n_samples:
-        w = w[:, -n_samples:]
-    elif w.shape[-1] < n_samples:
-        w = torch.cat([w, torch.zeros_like(w)[:, : n_samples - w.shape[-1]]], dim=-1)
+        return w[..., :n_samples]
+    else:
+        diff = n_samples - w.shape[-1]
+        z = torch.zeros((2, diff), dtype=w.dtype, device=w.device)
+        w = torch.cat((w, z), dim=-1)
     return w
+
+    # if w.shape[-1] < n_samples:
+    #     ww[:, : w.shape[-1]] = w
+    # else:
+    #     ww = w[..., :n_samples]
+    # return ww
+
+    # if w.shape[-1] > n_samples:
+    #     w = w[:, -n_samples:]
+    #
+    # elif w.shape[-1] < n_samples:
+    #     w = torch.cat([w, torch.zeros_like(w)[:, : n_samples - w.shape[-1]]], dim=-1)
+    #
+    # return w
 
 
 def plot_dset_sample(d):
@@ -61,6 +80,7 @@ class VAPDataset(Dataset):
         self,
         path: str,
         horizon: float = 2,
+        duration: float = 20,
         sample_rate: int = 16_000,
         frame_hz: int = 50,
         mono: bool = False,
@@ -73,6 +93,9 @@ class VAPDataset(Dataset):
         self.horizon = horizon
         self.mono = mono
 
+        self.duration = duration
+        self.n_samples = int(self.duration * self.sample_rate)
+
     def __len__(self) -> int:
         return len(self.df)
 
@@ -80,6 +103,7 @@ class VAPDataset(Dataset):
         d = self.df.iloc[idx]
         # Duration can be 19.99999999999997 for some clips and result in wrong vad-shape
         # so we round it to nearest second
+        # TODO: why can this be off, or why bad waveform shapes?
         dur = round(d["end"] - d["start"])
         w, _ = load_waveform(
             d["audio_path"],
@@ -89,12 +113,15 @@ class VAPDataset(Dataset):
             mono=self.mono,
         )
 
+        # TODO: Assume that the clip start at 0 and pad end? vice versa? how is the vad_list?
         # Ensure correct duration
         # Some clips (20s) becomes
         # [2, 320002] insted of [2, 320000]
         # breaking the batching
-        n_samples = int(dur * self.sample_rate)
-        w = force_correct_nsamples(w, n_samples)
+        w = force_correct_nsamples(w, self.n_samples)
+        if w.shape[-1] != self.n_samples:
+            print(f'BAD W: {d["session"]}')
+            print(f"BAD W: {w.shape}")
 
         # Stereo Audio
         # Use the vad-list information to convert mono to stereo
@@ -213,6 +240,19 @@ class VAPDataModule(L.LightningDataModule):
                 mono=self.mono,
             )
 
+    def collate_fn(self, batch: list[dict[str, Any]]):
+        batch_stacked = {k: [] for k in batch[0].keys()}
+
+        for b in batch:
+            batch_stacked["session"].append(b["session"])
+            batch_stacked["dataset"].append(b["dataset"])
+            batch_stacked["waveform"].append(b["waveform"])
+            batch_stacked["vad"].append(b["vad"])
+
+        batch_stacked["waveform"] = torch.stack(batch_stacked["waveform"])
+        batch_stacked["vad"] = torch.stack(batch_stacked["vad"])
+        return batch_stacked
+
     def train_dataloader(self):
         return DataLoader(
             self.train_dset,
@@ -220,6 +260,7 @@ class VAPDataModule(L.LightningDataModule):
             pin_memory=self.pin_memory,
             num_workers=self.num_workers,
             prefetch_factor=self.prefetch_factor,
+            collate_fn=self.collate_fn,
             shuffle=True,
         )
 
@@ -230,6 +271,7 @@ class VAPDataModule(L.LightningDataModule):
             pin_memory=self.pin_memory,
             num_workers=self.num_workers,
             prefetch_factor=self.prefetch_factor,
+            collate_fn=self.collate_fn,
             shuffle=False,
         )
 
@@ -240,6 +282,7 @@ class VAPDataModule(L.LightningDataModule):
             pin_memory=self.pin_memory,
             num_workers=self.num_workers,
             prefetch_factor=self.prefetch_factor,
+            collate_fn=self.collate_fn,
             shuffle=False,
         )
 
@@ -247,11 +290,13 @@ class VAPDataModule(L.LightningDataModule):
 if __name__ == "__main__":
 
     from argparse import ArgumentParser
-    import torch
+    from lightning import seed_everything
     from tqdm import tqdm
 
+    seed_everything(0)
+
     parser = ArgumentParser()
-    parser.add_argument("--csv_path", type=str, default="data/sliding_window_dset.csv")
+    parser.add_argument("--csv", type=str, default="data/sliding_window_dset.csv")
     parser.add_argument("--batch_size", type=int, default=10)
     parser.add_argument("--num_workers", type=int, default=0)
     parser.add_argument("--prefetch_factor", type=int, default=None)
@@ -259,15 +304,17 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.single:
-        dset = VAPDataset(path=args.csv_path)
+        dset = VAPDataset(path=args.csv)
         idx = int(torch.randint(0, len(dset), (1,)).item())
         d = dset[idx]
         plot_dset_sample(d)
+
     else:
+
         dm = VAPDataModule(
             # train_path="data/splits/sliding_window_dset_train.csv",
             # val_path="data/splits/sliding_window_dset_val.csv",
-            test_path=args.csv_path,
+            test_path=args.csv,
             batch_size=args.batch_size,  # as much as fit on gpu with model and max cpu cores
             num_workers=args.num_workers,  # number cpu cores
             prefetch_factor=args.prefetch_factor,  # how many batches to prefetch
@@ -277,6 +324,7 @@ if __name__ == "__main__":
         print(dm)
         print("VAPDataModule: ", len(dm.test_dset))
         dloader = dm.test_dataloader()
+        batch = next(iter(dloader))
         for batch in tqdm(
             dloader, desc="Running VAPDatamodule (Training wont be faster than this...)"
         ):

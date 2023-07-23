@@ -234,11 +234,12 @@ class VAPClassificationDataset(Dataset):
         if min_event_silence > 0:
             self.df = self.df[self.df["tfo"] >= min_event_silence]
 
-        self.context = context
         self.artificial_silence = post_silence
         self.sample_rate = sample_rate
         self.frame_hz = frame_hz
         self.mono = mono
+        self.context = context
+        self.n_samples = int(self.context * self.sample_rate)
 
     def __len__(self) -> int:
         return len(self.df)

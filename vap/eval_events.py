@@ -1,12 +1,13 @@
 import torch
-from torch import Tensor
 from torch.utils.data import DataLoader
 from pathlib import Path
-from os.path import dirname
+from os.path import join
 import tqdm
 import matplotlib.pyplot as plt
+import pandas as pd
 
 from vap.data.dset_event import VAPClassificationDataset
+from vap.utils.utils import write_json
 from vap.utils.plot import plot_melspectrogram, plot_vap_probs, plot_vad
 from vap.modules.lightning_module import VAPModule, VAP, everything_deterministic
 
@@ -49,80 +50,42 @@ def get_shift_probability(out, speaker, region_start: int, region_end: int):
     return preds
 
 
-def get_targets(labels):
-    if isinstance(labels, str):
-        labels = [labels]
-    targets = []
-    for lab in labels:
-        targets.append(1 if lab == "shift" else 0)
-    return targets
-
-
 @torch.inference_mode()
 def extract_preds_and_targets(
     model: VAP,
     dloader: DataLoader,
     region_start_time: float,
     region_end_time: float,
-) -> tuple[dict[str, Tensor], Tensor]:
+) -> pd.DataFrame:  # -> tuple[dict[str, Tensor], Tensor]:
+    def get_targets(labels):
+        if isinstance(labels, str):
+            labels = [labels]
+        targets = []
+        for lab in labels:
+            targets.append(1 if lab == "shift" else 0)
+        return targets
+
     model = model.eval()
     region_start = int(region_start_time * model.frame_hz)
     region_end = int(region_end_time * model.frame_hz)
-    preds = {
-        "p1": [],
-        "p2": [],
-        "p3": [],
-        "p4": [],
-        "p_now": [],
-        "p_fut": [],
+
+    data = {
+        k: []
+        for k in ["p1", "p2", "p3", "p4", "p_now", "p_fut", "tfo", "label", "target"]
     }
-    targets = []
     for batch in tqdm.tqdm(dloader, desc="Event classification"):
         # Model prediction
         out = model.probs(batch["waveform"].to(model.device))
-
         batch_preds = get_shift_probability(
             out, batch["speaker"], region_start, region_end
         )
         batch_targets = get_targets(batch["label"])
-        targets.extend(batch_targets)
-        preds["p_now"].extend(batch_preds["p_now"])
-        preds["p_fut"].extend(batch_preds["p_fut"])
-        for ii in range(1, 5):
-            preds[f"p{ii}"].extend(batch_preds[f"p{ii}"])
-    preds = {k: torch.tensor(v) for k, v in preds.items()}
-    targets = torch.tensor(targets)
-    return preds, targets
-
-
-def extract_threshold_accuracy(preds, targets):
-    acc = {
-        "acc": {k: [] for k in preds.keys()},
-        "bacc": {k: [] for k in preds.keys()},
-        "shift": {k: [] for k in preds.keys()},
-        "hold": {k: [] for k in preds.keys()},
-        "thresholds": torch.arange(0, 1.05, 0.05),
-    }
-    for thres in acc["thresholds"]:
-        for k, v in preds.items():
-            pred_tmp = (v >= thres).float()
-            correct = (pred_tmp == targets).float()
-            shift_acc = correct[targets == 1].mean()
-            hold_acc = correct[targets == 0].mean()
-            acc["acc"][k].append(correct.mean())
-            acc["bacc"][k].append((shift_acc + hold_acc) / 2)
-            acc["shift"][k].append(shift_acc)
-            acc["hold"][k].append(hold_acc)
-
-    # Convert to tensors
-    for acc_type, accs in acc.items():
-        if acc_type == "thresholds":
-            continue
-        for pred_type, accu in accs.items():
-            # print(acc_type, pred_type, torch.tensor(accu).shape)
-            acc[acc_type][pred_type] = torch.tensor(accu)
-
-    return acc
+        for k, v in batch_preds.items():
+            data[k].extend(v)
+        data["tfo"].extend(batch["tfo"].tolist())
+        data["label"].extend(batch["label"])
+        data["target"].extend(batch_targets)
+    return pd.DataFrame(data)
 
 
 def plot_output(d, out, height_ratios=[2, 2, 1, 1, 1, 1]):
@@ -150,196 +113,181 @@ def plot_output(d, out, height_ratios=[2, 2, 1, 1, 1, 1]):
     return fig, ax
 
 
-def plot_accuracy(acc):
-    def get_best_acc(acc, acc_type="bacc"):
-        now_t = acc["thresholds"][acc[acc_type]["p_now"].argmax()].item()
-        now_p = acc[acc_type]["p_now"].max().item()
-        best_t = acc["thresholds"][acc[acc_type]["p_fut"].argmax()].item()
-        best_p = acc[acc_type]["p_fut"].max().item()
-        best_label = f"p_fut: ({best_t:.2f}, {best_p:.2f})"
-        best_color = "g"
-        if now_p > best_p:
-            best_p = now_p
-            best_t = now_t
-            best_label = f"p_now: ({best_t:.2f}, {best_p:.2f})"
-            best_color = "r"
-        return best_t, best_p, best_label, best_color
+def plot_accuracy_now_vs_fut(af, N=None, figsize=(8, 6)):
+    def plot_target_lines(x, y, ax, label=None, color="k", linestyle=None, marker=None):
+        ax.plot(
+            [0, x], [y, y], color=color, linestyle=linestyle, alpha=0.6
+        )  # horizontal
+        ax.plot([x, x], [0, y], color=color, linestyle=linestyle, alpha=0.6)  # vertical
+        ax.scatter(x, y, color=color, label=label, marker=marker)
 
-    fig, ax = plt.subplots(1, 1)
+    def get_best(af, acc_type="bacc"):
+        a = torch.from_numpy(af[f"{acc_type}_p_now"].values)
+        b = torch.from_numpy(af[f"{acc_type}_p_fut"].values)
+        prefix = "BAcc"
+        if acc_type != "bacc":
+            prefix = acc_type[0].upper() + acc_type[1:]
+
+        y = a.max().item()
+        x = af["threshold"][a.argmax().item()]
+        label = f"{prefix} ({x:.2f},{y:.2f}) (now)"
+        color = "r"
+        bm = b.max().item()
+        if bm > y:
+            y = bm
+            x = af["threshold"][b.argmax().item()]
+            label = f"{prefix} ({x:.2f},{y:.2f}) (fut)"
+            color = "r"
+        return x, y, label, color
+
+    bacc_t, bacc, bacc_label, bacc_color = get_best(af, acc_type="bacc")
+    acc_t, acc, acc_label, acc_color = get_best(af, acc_type="acc")
+
+    fig = plt.figure(figsize=figsize)
+    if N is not None:
+        fig.suptitle(
+            f"{N['total']} Events. SHIFTs: ({100*N['shift']:.1f}%) HOLDs: ({100*N['hold']:.1f}%)"
+        )
+    ax = plt.subplot()
+    plot_target_lines(bacc_t, bacc, ax, label=bacc_label, color=bacc_color)
+    plot_target_lines(
+        acc_t, acc, ax, label=acc_label, color=acc_color, linestyle="--", marker="x"
+    )
     ax.plot(
-        acc["thresholds"],
-        acc["bacc"]["p_now"],
-        label="bacc p_now",
+        af["threshold"],
+        af["bacc_p_now"],
+        label="BAcc (now)",
         color="r",
         linewidth=2,
-        alpha=0.6,
     )
     ax.plot(
-        acc["thresholds"],
-        acc["bacc"]["p_fut"],
-        label="bacc p_fut",
+        af["threshold"],
+        af["bacc_p_fut"],
+        label="BAcc (fut)",
         color="g",
         linewidth=2,
-        alpha=0.6,
     )
     ax.plot(
-        acc["thresholds"],
-        acc["acc"]["p_now"],
-        label="acc p_now",
+        af["threshold"],
+        af["acc_p_now"],
+        label="Acc (now)",
+        linestyle="--",
+        linewidth=1,
         color="r",
-        linewidth=2,
-        linestyle="--",
         alpha=0.6,
     )
     ax.plot(
-        acc["thresholds"],
-        acc["acc"]["p_fut"],
-        label="acc p_fut",
-        color="g",
-        linewidth=2,
+        af["threshold"],
+        af["acc_p_fut"],
+        label="Acc (fut)",
         linestyle="--",
+        linewidth=1,
+        color="g",
         alpha=0.6,
     )
     ax.axhline(0.5, color="k", linestyle="--")
-    # Plot best BACC values
-    best_bacc_t, best_bacc_p, best_bacc_label, best_bacc_color = get_best_acc(
-        acc, acc_type="bacc"
-    )
-    ax.scatter(
-        best_bacc_t,
-        best_bacc_p,
-        color=best_bacc_color,
-        label="BAcc: " + best_bacc_label,
-    )
-    ax.plot(
-        [0, best_bacc_t], [best_bacc_p, best_bacc_p], color=best_bacc_color, linewidth=1
-    )
-    ax.plot(
-        [best_bacc_t, best_bacc_t], [0, best_bacc_p], color=best_bacc_color, linewidth=1
-    )
-    # Plot best ACC values
-    best_acc_t, best_acc_p, best_acc_label, best_acc_color = get_best_acc(
-        acc, acc_type="acc"
-    )
-    ax.scatter(
-        best_acc_t,
-        best_acc_p,
-        color=best_acc_color,
-        marker="+",
-        label="Acc: " + best_acc_label,
-    )
-    ax.plot(
-        [0, best_acc_t],
-        [best_acc_p, best_acc_p],
-        color=best_acc_color,
-        linestyle="--",
-        linewidth=1,
-    )
-    ax.plot(
-        [best_acc_t, best_acc_t],
-        [0, best_acc_p],
-        color=best_acc_color,
-        linestyle="--",
-        linewidth=1,
-    )
     ax.legend()
-    ax.set_ylabel("Accuracy")
-    ax.set_xlabel("Threshold")
     ax.set_ylim([0, 1])
-    ax.set_xlim([0, 1])
+    ax.set_xlabel("Threshold")
+    ax.set_ylabel("Accuracy")
     plt.tight_layout()
     return fig, ax
 
 
-def debug():
-    def debug_output(batch, out, region_start=None, region_end=None):
-        w = batch["waveform"].cpu()
-        vap_vad = out["vad"].squeeze().cpu()
-        pn = out["p_now"].squeeze().cpu()
-        pf = out["p_future"].squeeze().cpu()
-        speaker = batch["speaker"]
+def get_dataloader(args) -> DataLoader:
+    dset = VAPClassificationDataset(
+        df_path=args.csv,
+        context=args.context,
+        post_silence=args.post_silence,
+        min_event_silence=0,
+    )
+    return DataLoader(
+        dset,
+        batch_size=args.batch_size,
+        num_workers=args.num_workers,
+        prefetch_factor=args.prefetch_factor,
+        shuffle=False,
+        pin_memory=True,
+    )
 
-        fig, ax = plt.subplots(
-            nrows=8,
-            sharex=True,
-            figsize=(15, 6),
-            gridspec_kw={
-                "height_ratios": [1.5, 1.5, 1, 1, 1, 1, 1, 1],
-                "hspace": 0.01,
-            },
-        )
-        # Plot audio + VAD
-        plot_melspectrogram(w, ax=ax[:2])
-        x2 = torch.arange(vap_vad.shape[0]) / dset.frame_hz
-        plot_vad(
-            x2,
-            vap_vad[:, 0],
-            ax[0],
-            ypad=3,
-            color="w",
-            label="VAD pred",
-            linewidth=1 if speaker == 1 else 3,
-        )
-        plot_vad(
-            x2,
-            vap_vad[:, 1],
-            ax[1],
-            ypad=3,
-            color="w",
-            label="VAD pred",
-            linewidth=1 if speaker == 0 else 3,
-        )
-        # Plot probs
-        plot_vap_probs(pn, ax=ax[2])
-        plot_vap_probs(pf, ax=ax[3])
 
-        for ii, ps in enumerate(out["p"]):
-            plot_vap_probs(ps.squeeze().cpu(), ax=ax[4 + ii])
+def calculate_accuracy(df):
+    pred_names = ["p_now", "p_fut", "p1", "p2", "p3", "p4"]
+    targets = torch.from_numpy(df["target"].values)
+    thresholds = torch.arange(0, 1.05, 0.05)
+    data = []
+    for t in thresholds:
+        row = {"threshold": t.item()}
+        for name in pred_names:
+            p = torch.from_numpy(df[name].values)
+            correct = ((p >= t) == targets).float()
+            shift_acc = correct[targets == 1].mean().item()
+            hold_acc = correct[targets == 0].mean().item()
+            row[f"acc_{name}"] = correct.mean().item()
+            row[f"bacc_{name}"] = (shift_acc + hold_acc) / 2
+            row[f"acc_shift_{name}"] = shift_acc
+            row[f"acc_hold_{name}"] = hold_acc
+        data.append(row)
+    return pd.DataFrame(data)
 
-        if region_start is not None and region_end is not None:
-            for a in ax:
-                a.axvspan(
-                    region_start,
-                    region_end,
-                    color="r",
-                    alpha=0.5,
-                )
-        ax[0].set_xticks([])
-        ax[1].set_xticks([])
-        plt.tight_layout()
-        return fig, ax
 
-    context = 20
-    region_sil_pad_time = 0.1
-    region_start_time = context + region_sil_pad_time
-    region_end_time = region_start_time + 0.2
-    frame_start = int(region_start_time * dset.frame_hz)
-    frame_end = int(region_end_time * dset.frame_hz)
-    for i in range(len(dset)):
-        with torch.inference_mode():
-            batch = dset[i]
-            out = model.probs(batch["waveform"].unsqueeze(0).to(model.device))
-        tmp_preds = get_shift_probability(out, batch["speaker"], frame_start, frame_end)
-        print(batch["label"].upper())
-        for k, v in tmp_preds.items():
-            pred_lab = "SHIFT" if v[0] > 0.5 else "HOLD"
-            print(f"{k}: ", round(v[0], 2), pred_lab)
-        print("#" * 40)
-        fig, ax = debug_output(batch, out, region_start_time, region_end_time)
+def simple_label_stats(df: pd.DataFrame):
+    n = len(df)
+    n_shift = len(df[df["target"] == 1])
+    n_hold = len(df[df["target"] == 0])
+    return {"total": n, "shift": n_shift / n, "hold": n_hold / n}
+
+
+def evaluation(args):
+    """Event Evaluation"""
+    # Load Model
+    model: VAP = VAPModule.load_model(args.checkpoint).eval()
+    if torch.cuda.is_available():
+        model = model.to("cuda")
+    # Load Dataset
+    dloader = get_dataloader(args)
+
+    # Extract all prediction and calculate accuracy
+    region_start_time = args.context + args.region_sil_pad_time
+    region_end_time = region_start_time + args.region_duration
+
+    # Columns: ['p1', 'p2', 'p3', 'p4', 'p_now', 'p_fut', 'tfo', 'label', 'target']
+    df = extract_preds_and_targets(model, dloader, region_start_time, region_end_time)
+    af = calculate_accuracy(df)
+    label_stats = simple_label_stats(df)
+    fig, ax = plot_accuracy_now_vs_fut(af, N=label_stats)
+
+    metadata = vars(args)
+    metadata["events_total"] = label_stats["total"]
+    metadata["events_shift"] = label_stats["shift"]
+    metadata["events_hold"] = label_stats["shift"]
+
+    # Save Results
+    Path(args.output_dir).mkdir(exist_ok=True, parents=True)
+    df.to_csv(join(args.output_dir, "predictions.csv"), index=False)
+    af.to_csv(join(args.output_dir, "accuracy.csv"), index=False)
+    fig.savefig(join(args.output_dir, "accuracy.jpeg"))
+    write_json(metadata, join(args.output_dir, "metadata.json"))
+
+    print("Saved files -> ", args.output_dir)
+    print(join(args.output_dir, "predictions.csv"))
+    print(join(args.output_dir, "accuracy.csv"))
+    print(join(args.output_dir, "accuracy.jpeg"))
+    print(join(args.output_dir, "metadata.json"))
+
+    if args.plot:
         plt.show()
 
 
 if __name__ == "__main__":
 
     from argparse import ArgumentParser
-    import pandas as pd
-    import sys
 
     parser = ArgumentParser()
     parser.add_argument("--checkpoint", type=str, default=None)
-    parser.add_argument("--output", type=str, default="event_results.csv")
     parser.add_argument("--csv", type=str, default=None)
-    parser.add_argument("--result_csv", type=str, default=None)
+    parser.add_argument("--output_dir", type=str, default=None)
+    # Evaluation arguments
     parser.add_argument("--context", type=float, default=20)
     parser.add_argument("--region_sil_pad_time", type=float, default=0.2)
     parser.add_argument("--region_duration", type=float, default=0.2)
@@ -347,44 +295,18 @@ if __name__ == "__main__":
     parser.add_argument("--min_event_silence", type=float, default=0)
     parser.add_argument("--batch_size", type=int, default=10)
     parser.add_argument("--num_workers", type=int, default=0)
+    parser.add_argument("--prefetch_factor", type=int, default=None)
     parser.add_argument("--plot", action="store_true")
     args = parser.parse_args()
-
-    if args.result_csv:
-        df = pd.read_csv(args.result_csv)
-
-        targets = torch.from_numpy(df["targets"].values)
-        preds = {
-            "p_now": torch.from_numpy(df["p_now"].values),
-            "p_fut": torch.from_numpy(df["p_fut"].values),
-            "p1": torch.from_numpy(df["p1"].values),
-            "p2": torch.from_numpy(df["p2"].values),
-            "p3": torch.from_numpy(df["p3"].values),
-            "p4": torch.from_numpy(df["p4"].values),
-        }
-        acc = extract_threshold_accuracy(preds, targets)
-        print("Balanced ACCURACY")
-        print("type: bacc, threshold")
-        for pred_type, accuracy in acc["bacc"].items():
-            t = acc["thresholds"][accuracy.argmax()].item()
-            a = accuracy.max().item()
-            print(f"{pred_type}: {a:.2f}, {t:.2f}")
-
-        print("ACCURACY")
-        print("type: acc, threshold")
-        for pred_type, accuracy in acc["acc"].items():
-            t = acc["thresholds"][accuracy.argmax()].item()
-            a = accuracy.max().item()
-            print(f"{pred_type}: {a:.2f}, {t:.2f}")
-
-        if args.plot:
-            fig, ax = plot_accuracy(acc)
-            plt.show()
-        sys.exit(0)
 
     assert (
         args.checkpoint is not None and args.csv is not None
     ), "Must provide --checkpoint and --csv"
+
+    if args.output_dir is None:
+        args.output_dir = join(
+            "data/results/classification", Path(args.checkpoint).stem
+        )
 
     print("\nArguments")
     for k, v in vars(args).items():
@@ -392,56 +314,4 @@ if __name__ == "__main__":
     print("-" * 40)
     print()
 
-    model: VAP = VAPModule.load_model(args.checkpoint).eval()
-    if torch.cuda.is_available():
-        model = model.to("cuda")
-
-    region_start_time = args.context + args.region_sil_pad_time
-    region_end_time = region_start_time + args.region_duration
-    dset = VAPClassificationDataset(
-        df_path=args.csv,
-        context=args.context,
-        post_silence=args.post_silence,
-        min_event_silence=0,
-    )
-    print("DSET: ", len(dset))
-    dloader = DataLoader(
-        dset,
-        batch_size=args.batch_size,
-        num_workers=args.num_workers,
-        shuffle=False,
-        pin_memory=True,
-    )
-    preds, targets = extract_preds_and_targets(
-        model, dloader, region_start_time, region_end_time
-    )
-    acc = extract_threshold_accuracy(preds, targets)
-
-    # Combine data for save
-    preds["label"] = ["SHIFT" if l == 1 else "HOLD" for l in targets]
-    preds["targets"] = targets
-    df = pd.DataFrame(
-        columns=["p_fut", "p_now", "p1", "p2", "p3", "p4", "label", "targets"],
-        data=preds,
-    )
-    Path(dirname(args.output)).mkdir(exist_ok=True, parents=True)
-    df.to_csv(args.output, index=False)
-    print("Saved results -> ", args.output)
-
-    print("Balanced ACCURACY")
-    print("type: bacc, threshold")
-    for pred_type, accuracy in acc["bacc"].items():
-        t = acc["thresholds"][accuracy.argmax()].item()
-        a = accuracy.max().item()
-        print(f"{pred_type}: {a:.2f}, {t:.2f}")
-
-    print("ACCURACY")
-    print("type: acc, threshold")
-    for pred_type, accuracy in acc["acc"].items():
-        t = acc["thresholds"][accuracy.argmax()].item()
-        a = accuracy.max().item()
-        print(f"{pred_type}: {a:.2f}, {t:.2f}")
-
-    if args.plot:
-        fig, ax = plot_accuracy(acc)
-        plt.show()
+    evaluation(args)
