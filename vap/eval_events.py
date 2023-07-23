@@ -1,5 +1,7 @@
 import torch
 from torch.utils.data import DataLoader
+from torchmetrics.functional import f1_score
+
 from pathlib import Path
 from os.path import join
 import tqdm
@@ -145,6 +147,16 @@ def plot_accuracy_now_vs_fut(af, N=None, figsize=(8, 6)):
         color="g",
         alpha=0.6,
     )
+    if "f1w_p_now" in af.columns:
+        ax.plot(af["threshold"], af["f1w_p_now"], color="darkred", label="F1w (now)")
+    if "f1w_p_fut" in af.columns:
+        ax.plot(
+            af["threshold"],
+            af["f1w_p_fut"],
+            color="darkgreen",
+            label="F1w (fut)",
+            linestyle=":",
+        )
     ax.axhline(0.5, color="k", linestyle="--")
     ax.legend()
     ax.set_ylim([0, 1])
@@ -162,14 +174,21 @@ def calculate_accuracy(df):
     for t in thresholds:
         row = {"threshold": t.item()}
         for name in pred_names:
-            p = torch.from_numpy(df[name].values)
-            correct = ((p >= t) == targets).float()
+            p_guess = (torch.from_numpy(df[name].values) >= t).float()
+            correct = (p_guess == targets).float()
             shift_acc = correct[targets == 1].mean().item()
             hold_acc = correct[targets == 0].mean().item()
             row[f"acc_{name}"] = correct.mean().item()
             row[f"bacc_{name}"] = (shift_acc + hold_acc) / 2
             row[f"acc_shift_{name}"] = shift_acc
             row[f"acc_hold_{name}"] = hold_acc
+            row[f"f1w_{name}"] = f1_score(
+                p_guess,
+                targets,
+                task="multiclass",
+                num_classes=2,
+                average="weighted",
+            ).item()
         data.append(row)
     return pd.DataFrame(data)
 
