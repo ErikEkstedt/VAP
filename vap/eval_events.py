@@ -14,42 +14,6 @@ from vap.modules.lightning_module import VAPModule, VAP, everything_deterministi
 everything_deterministic()
 
 
-def get_shift_probability(out, speaker, region_start: int, region_end: int):
-    """
-    out['p']:        4, n_batch, n_frames
-    out['p_now']:    n_batch, n_frames
-    out['p_future']: n_batch, n_frames
-    """
-    ps = out["p"][..., region_start:region_end].mean(-1).cpu()
-    pn = out["p_now"][..., region_start:region_end].mean(-1).cpu()
-    pf = out["p_future"][..., region_start:region_end].mean(-1).cpu()
-
-    batch_size = pn.shape[0]
-
-    # if batch size == 1
-    if batch_size == 1:
-        speaker = [speaker]
-
-    # Make all values 'shift probabilities'
-    # The speaker is the speaker of the target IPU
-    # A shift is the probability of the other speaker
-    # The predictions values are always for the first speaker
-    # So if the current speaker is speaker 1 then the probability of the default
-    # speaker is the same as the shift-probability
-    # However, if the current speaker is speaker 0 then the default probabilities
-    # are HOLD probabilities, so we need to invert them
-    for ii, spk in enumerate(speaker):
-        if spk == 0:
-            ps[:, ii] = 1 - ps[:, ii]
-            pn[ii] = 1 - pn[ii]
-            pf[ii] = 1 - pf[ii]
-
-    preds = {f"p{k+1}": v.tolist() for k, v in enumerate(ps)}
-    preds["p_now"] = pn.tolist()
-    preds["p_fut"] = pf.tolist()
-    return preds
-
-
 @torch.inference_mode()
 def extract_preds_and_targets(
     model: VAP,
@@ -66,9 +30,6 @@ def extract_preds_and_targets(
         return targets
 
     model = model.eval()
-    region_start = int(region_start_time * model.frame_hz)
-    region_end = int(region_end_time * model.frame_hz)
-
     data = {
         k: []
         for k in ["p1", "p2", "p3", "p4", "p_now", "p_fut", "tfo", "label", "target"]
@@ -76,8 +37,8 @@ def extract_preds_and_targets(
     for batch in tqdm.tqdm(dloader, desc="Event classification"):
         # Model prediction
         out = model.probs(batch["waveform"].to(model.device))
-        batch_preds = get_shift_probability(
-            out, batch["speaker"], region_start, region_end
+        batch_preds = model.get_shift_probability(
+            out, region_start_time, region_end_time, speaker=batch["speaker"]
         )
         batch_targets = get_targets(batch["label"])
         for k, v in batch_preds.items():
@@ -88,7 +49,7 @@ def extract_preds_and_targets(
     return pd.DataFrame(data)
 
 
-def plot_output(d, out, height_ratios=[2, 2, 1, 1, 1, 1]):
+def plot_output(d, out, height_ratios=[2, 2, 1, 1, 1, 1], frame_hz: int = 50):
     # Create the figure and the GridSpec instance with the given height ratios
     fig, ax = plt.subplots(
         nrows=6,
@@ -98,7 +59,7 @@ def plot_output(d, out, height_ratios=[2, 2, 1, 1, 1, 1]):
     )
     plot_melspectrogram(d["waveform"], ax=ax[:2])
     # plot vad.
-    x2 = torch.arange(out["vad"].shape[1]) / dset.frame_hz
+    x2 = torch.arange(out["vad"].shape[1]) / frame_hz
     plot_vad(x2, out["vad"][0, :, 0], ax[0], ypad=3, color="w", label="VAD pred")
     plot_vad(x2, out["vad"][0, :, 1], ax[1], ypad=3, color="w", label="VAD pred")
     for i in range(4):
@@ -109,7 +70,6 @@ def plot_output(d, out, height_ratios=[2, 2, 1, 1, 1, 1]):
     ax[1].legend()
     ax[-1].set_xticks(list(range(0, 1 + round(x2[-1].item()))))  # list(range(0, 20)))
     ax[-1].set_xlabel("Time (s)")
-    plt.tight_layout()
     return fig, ax
 
 
@@ -194,23 +154,6 @@ def plot_accuracy_now_vs_fut(af, N=None, figsize=(8, 6)):
     return fig, ax
 
 
-def get_dataloader(args) -> DataLoader:
-    dset = VAPClassificationDataset(
-        df_path=args.csv,
-        context=args.context,
-        post_silence=args.post_silence,
-        min_event_silence=0,
-    )
-    return DataLoader(
-        dset,
-        batch_size=args.batch_size,
-        num_workers=args.num_workers,
-        prefetch_factor=args.prefetch_factor,
-        shuffle=False,
-        pin_memory=True,
-    )
-
-
 def calculate_accuracy(df):
     pred_names = ["p_now", "p_fut", "p1", "p2", "p3", "p4"]
     targets = torch.from_numpy(df["target"].values)
@@ -245,7 +188,20 @@ def evaluation(args):
     if torch.cuda.is_available():
         model = model.to("cuda")
     # Load Dataset
-    dloader = get_dataloader(args)
+    dset = VAPClassificationDataset(
+        df_path=args.csv,
+        context=args.context,
+        post_silence=args.post_silence,
+        min_event_silence=0,
+    )
+    dloader = DataLoader(
+        dset,
+        batch_size=args.batch_size,
+        num_workers=args.num_workers,
+        prefetch_factor=args.prefetch_factor,
+        shuffle=False,
+        pin_memory=True,
+    )
 
     # Extract all prediction and calculate accuracy
     region_start_time = args.context + args.region_sil_pad_time
@@ -260,7 +216,7 @@ def evaluation(args):
     metadata = vars(args)
     metadata["events_total"] = label_stats["total"]
     metadata["events_shift"] = label_stats["shift"]
-    metadata["events_hold"] = label_stats["shift"]
+    metadata["events_hold"] = label_stats["hold"]
 
     # Save Results
     Path(args.output_dir).mkdir(exist_ok=True, parents=True)
@@ -287,16 +243,17 @@ if __name__ == "__main__":
     parser.add_argument("--checkpoint", type=str, default=None)
     parser.add_argument("--csv", type=str, default=None)
     parser.add_argument("--output_dir", type=str, default=None)
+    parser.add_argument("--plot", action="store_true")
     # Evaluation arguments
     parser.add_argument("--context", type=float, default=20)
     parser.add_argument("--region_sil_pad_time", type=float, default=0.2)
     parser.add_argument("--region_duration", type=float, default=0.2)
     parser.add_argument("--post_silence", type=float, default=1.0)
     parser.add_argument("--min_event_silence", type=float, default=0)
+    # DataLoader arguments
     parser.add_argument("--batch_size", type=int, default=10)
     parser.add_argument("--num_workers", type=int, default=0)
     parser.add_argument("--prefetch_factor", type=int, default=None)
-    parser.add_argument("--plot", action="store_true")
     args = parser.parse_args()
 
     assert (

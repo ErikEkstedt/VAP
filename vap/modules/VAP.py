@@ -13,6 +13,8 @@ from vap.utils.utils import (
 
 everything_deterministic()
 
+OUT = dict[str, Tensor]
+
 
 class VAP(nn.Module):
     def __init__(
@@ -118,13 +120,58 @@ class VAP(nn.Module):
         }
 
     @torch.inference_mode()
+    def get_shift_probability(
+        self, out: OUT, start_time: float, end_time: float, speaker
+    ) -> dict[str, list[float]]:
+        """
+        Get shift probabilities (for classification) over the region `[start_time, end_time]`
+
+        The `speaker` is the speaker before the silence, i.e. the speaker of the target IPU
+
+        Shapes:
+        out['p']:           (4, n_batch, n_frames)
+        out['p_now']:       (n_batch, n_frames)
+        out['p_future']:    (n_batch, n_frames)
+        """
+        region_start = int(start_time * self.frame_hz)
+        region_end = int(end_time * self.frame_hz)
+        ps = out["p"][..., region_start:region_end].mean(-1).cpu()
+        pn = out["p_now"][..., region_start:region_end].mean(-1).cpu()
+        pf = out["p_future"][..., region_start:region_end].mean(-1).cpu()
+
+        batch_size = pn.shape[0]
+
+        # if batch size == 1
+        if batch_size == 1:
+            speaker = [speaker]
+
+        # Make all values 'shift probabilities'
+        # The speaker is the speaker of the target IPU
+        # A shift is the probability of the other speaker
+        # The predictions values are always for the first speaker
+        # So if the current speaker is speaker 1 then the probability of the default
+        # speaker is the same as the shift-probability
+        # However, if the current speaker is speaker 0 then the default probabilities
+        # are HOLD probabilities, so we need to invert them
+        for ii, spk in enumerate(speaker):
+            if spk == 0:
+                ps[:, ii] = 1 - ps[:, ii]
+                pn[ii] = 1 - pn[ii]
+                pf[ii] = 1 - pf[ii]
+
+        preds = {f"p{k+1}": v.tolist() for k, v in enumerate(ps)}
+        preds["p_now"] = pn.tolist()
+        preds["p_fut"] = pf.tolist()
+        return preds
+
+    @torch.inference_mode()
     def probs(
         self,
         waveform: Tensor,
         vad: Optional[Tensor] = None,
         now_lims: list[int] = [0, 1],
         future_lims: list[int] = [2, 3],
-    ) -> dict[str, Tensor]:
+    ) -> OUT:
         """"""
         out = self(waveform)
         probs = out["logits"].softmax(dim=-1)
