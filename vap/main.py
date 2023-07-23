@@ -5,6 +5,7 @@ import os
 from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
 from lightning import seed_everything
+from lightning.pytorch import Trainer
 
 log: logging.Logger = logging.getLogger(__name__)
 
@@ -18,7 +19,6 @@ def main(cfg: DictConfig) -> None:
 
     module = instantiate(cfg.module)
     datamodule = instantiate(cfg.datamodule)
-    trainer = instantiate(cfg.trainer)
 
     if getattr(cfg, "pretrained_checkpoint_path", None):
         module = module.load_from_checkpoint(
@@ -30,6 +30,11 @@ def main(cfg: DictConfig) -> None:
             module.val_metric = metric
             print("Added val metrics")
         input("Press enter to continue: ")
+
+    if getattr(cfg, "debug", False):
+        trainer = Trainer(fast_dev_run=True)
+    else:
+        trainer = instantiate(cfg.trainer)
 
     print("CPUs: ", os.cpu_count())
     print("Pytorch Threads: ", torch.get_num_threads())
