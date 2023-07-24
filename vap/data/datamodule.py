@@ -3,7 +3,7 @@ from torch import Tensor
 from torch.utils.data import Dataset, DataLoader
 import lightning as L
 
-from os.path import exists
+from os.path import isfile
 import pandas as pd
 import json
 from typing import Optional, Mapping, Any
@@ -192,29 +192,25 @@ class VAPDataModule(L.LightningDataModule):
 
     def prepare_data(self):
         if self.train_path is not None:
-            assert self.path_exists("train"), f"No TRAIN file found: {self.train_path}"
+            if not isfile(self.train_path):
+                print("WARNING: no TRAINING data found: ", self.train_path)
 
         if self.val_path is not None:
-            assert self.path_exists("val"), f"No TRAIN file found: {self.train_path}"
+            if not isfile(self.val_path):
+                print("WARNING: no VALIDATION data found: ", self.val_path)
 
         if self.test_path is not None:
-            assert exists(self.test_path), f"No TEST file found: {self.test_path}"
-
-    def path_exists(self, split):
-        path = getattr(self, f"{split}_path")
-        if path is None:
-            return False
-
-        if not exists(path):
-            return False
-        return True
+            if not isfile(self.test_path):
+                print("WARNING: no TEST data found: ", self.test_path)
 
     def setup(self, stage: Optional[str] = "fit"):
         """Loads the datasets"""
 
         if stage in (None, "fit"):
-            assert self.path_exists("train"), f"Train path not found: {self.train_path}"
-            assert self.path_exists("val"), f"Val path not found: {self.val_path}"
+            assert self.train_path is not None, "TRAIN path is None"
+            assert self.val_path is not None, "VAL path is None"
+            assert isfile(self.train_path), f"TRAIN path not found: {self.train_path}"
+            assert isfile(self.val_path), f"VAL path not found: {self.val_path}"
             self.train_dset = VAPDataset(
                 self.train_path,
                 horizon=self.horizon,
@@ -231,7 +227,8 @@ class VAPDataModule(L.LightningDataModule):
             )
 
         if stage in (None, "test"):
-            assert self.path_exists("test"), f"Test path not found: {self.test_path}"
+            assert self.test_path is not None, "TEST path is None"
+            assert isfile(self.test_path), f"TEST path not found: {self.test_path}"
             self.test_dset = VAPDataset(
                 self.test_path,
                 horizon=self.horizon,
@@ -326,6 +323,8 @@ if __name__ == "__main__":
         dloader = dm.test_dataloader()
         batch = next(iter(dloader))
         for batch in tqdm(
-            dloader, desc="Running VAPDatamodule (Training wont be faster than this...)"
+            dloader,
+            total=len(dloader),
+            desc="Running VAPDatamodule (Training wont be faster than this...)",
         ):
             pass
