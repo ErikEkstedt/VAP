@@ -24,6 +24,7 @@ class EncoderHubert(torch.nn.Module):
         freeze: bool = True,
     ):
         super().__init__()
+        self.sample_rate = 16_000
         self.causal = causal
         self.output_dim = output_dim
         self.only_feature_extractor = only_feature_extractor

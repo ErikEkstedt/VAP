@@ -1,12 +1,12 @@
 import torch
-from vap.modules.lightning_module import VAPModule
+from vap.modules.lightning_module import VAPModule, VAP
 from vap.utils.utils import everything_deterministic
 
 everything_deterministic()
 
 
 def test_causality_gradient(
-    model,
+    model: VAP,
     duration: float = 10.0,
     focus_time: float = 5.0,
     pad_frames: int = 0,
@@ -27,7 +27,7 @@ def test_causality_gradient(
     focus_sample = int(model.sample_rate * focus_time)
     focus_frame = int(model.frame_hz * focus_time)
     # 1. Waveform + gradient tracking
-    x = torch.randn(4, 2, n_samples, device=model.device, requires_grad=True)
+    x = torch.randn(2, 2, n_samples, device=model.device, requires_grad=True)
 
     # 2. Model output
     out = model(x)
@@ -52,9 +52,35 @@ def test_causality_gradient(
 
 if __name__ == "__main__":
 
-    model = VAPModule.load_model("example/checkpoints/checkpoint.ckpt").to("cpu")
+    from argparse import ArgumentParser
+    from vap.modules.modules import TransformerStereo
+    from vap.modules.encoder import EncoderCPC
+    from vap.modules.encoder_hubert import EncoderHubert
 
-    test_causality_gradient(model, duration=10, focus_time=5, verbose=True)
+    parser = ArgumentParser()
+    parser.add_argument("--encoder", type=str, default="cpc")
+    parser.add_argument("--duration", type=float, default=10)
+    parser.add_argument("--focus", type=float, default=5)
+    parser.add_argument("--checkpoint", type=str, default=None)
+    parser.add_argument("--cpu", action="store_true")
+    args = parser.parse_args()
 
-    model.to("cuda")
+    if args.checkpoint is not None:
+        model = VAPModule.load_model(args.checkpoint)
+
+    else:
+        if args.encoder.lower() == "hubert":
+            enc = EncoderHubert()
+        else:
+            enc = EncoderCPC()
+        model = VAP(enc, TransformerStereo())
+
+    if args.cpu:
+        model = model.to("cpu")
+        print("CPU")
+    else:
+        if torch.cuda.is_available():
+            model = model.to("cuda")
+            print("CUDA")
+
     test_causality_gradient(model, duration=10, focus_time=5, verbose=True)
