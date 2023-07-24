@@ -1,26 +1,20 @@
 import torch
-import torch.nn as nn
 from torch import Tensor
 from torch.nn.parameter import Parameter
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.optim.optimizer import Optimizer
 
 import lightning as L
-from typing import Optional, Mapping, Iterable, Callable, Union
+from typing import Optional, Mapping, Iterable, Callable
 
 from vap.metrics import VAPMetric
 from vap.modules.VAP import VAP
-from vap.objective import VAPObjective
-from vap.utils.utils import (
-    everything_deterministic,
-    vad_fill_silences,
-    vad_omit_spikes,
-)
+from vap.utils.utils import everything_deterministic
 
-
-everything_deterministic()
 
 Batch = Mapping[str, Tensor]
+
+everything_deterministic()
 
 
 class VAPModule(L.LightningModule):

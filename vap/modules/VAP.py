@@ -31,6 +31,13 @@ class VAP(nn.Module):
         self.frame_hz = frame_hz
         self.dim: int = getattr(self.transformer, "dim", 256)
 
+        self.feature_projection = nn.Identity()
+        if self.encoder.dim != self.transformer.dim:
+            self.feature_projection = nn.Sequential(
+                nn.Linear(self.encoder.dim, self.transformer.dim),
+                nn.GELU(),
+            )
+
         # Outputs
         # Voice activity objective -> x1, x2 -> logits ->  BCE
         self.va_classifier = nn.Linear(self.dim, 1)
@@ -69,8 +76,10 @@ class VAP(nn.Module):
         logits = self.vap_head(x)
         return logits, vad
 
-    def forward(self, waveform: Tensor, attention: bool = False) -> dict[str, Tensor]:
+    def forward(self, waveform: Tensor, attention: bool = False) -> OUT:
         x1, x2 = self.encode_audio(waveform)
+        x1 = self.feature_projection(x1)
+        x2 = self.feature_projection(x2)
         out = self.transformer(x1, x2, attention=attention)
         logits, vad = self.head(out["x"], out["x1"], out["x2"])
         out["logits"] = logits
@@ -227,7 +236,7 @@ if __name__ == "__main__":
 
     encoder = EncoderCPC()
     # encoder = EncoderHubert()
-    transformer = TransformerStereo()
+    transformer = TransformerStereo(dim=512)
 
     model = VAP(encoder, transformer)
     print(model)
