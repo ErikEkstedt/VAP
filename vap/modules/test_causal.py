@@ -2,15 +2,39 @@ import torch
 from vap.modules.lightning_module import VAPModule, VAP
 from vap.utils.utils import everything_deterministic
 
+import matplotlib.pyplot as plt
+
 everything_deterministic()
 
 
-def test_causality_gradient(
+def plot_pre_post(pre, post, label="causality", pad_samples=0, time=False):
+    ax = plt.subplot()
+    x1 = torch.arange(len(pre)).float()
+    x2 = (1 + pad_samples + len(pre) + torch.arange(len(post))).float()
+
+    if time:
+        x1 /= 16_000
+        x2 /= 16_000
+
+    ax.plot(x1, pre.detach().cpu(), label=f"{label}: PRE", color="g", linewidth=2)
+    ax.plot(x2, post.detach().cpu(), label=f"{label}: POST", color="red", linewidth=2)
+    ax.legend()
+    ax.set_ylabel("Gradient")
+    ax.set_xlabel("Step")
+    if post.sum() > 0:
+        print(f"{label} causailty FAILED")
+        print("post grad sum: ", post.sum())
+        print("pre  grad sum: ", pre.sum())
+    plt.show()
+
+
+def test_causality_gradient_VAP(
     model: VAP,
     duration: float = 10.0,
     focus_time: float = 5.0,
-    pad_frames: int = 0,
+    pad_samples: int = 0,
     verbose: bool = False,
+    plot: bool = False,
 ) -> bool:
     """
     Test that the gradient is zero in the future.
@@ -19,6 +43,18 @@ def test_causality_gradient(
     3. Choose a frame in the middle of the sequence
     4. Calculate the loss gradient, on that specific frame, w.r.t the input tensor
     5. There should not be any gradient information in the future part of the input tensor
+
+    CPC model is causal but the CNN makes it not strictly causal. The CPC model will provide
+    gradient information 312 samples (20ms) into the future.
+    A small amount which practically does not matter.
+
+    Arguments:
+        duration:    Duration of the input waveform in seconds
+        focus_time:  Time in seconds to focus and calculate the gradient from
+        pad_samples: Number of samples to pad the gradient check with
+        verbose:     Print information
+    Returns:
+        is_causal:   True if the gradient is zero in the future
     """
     model.train()
 
@@ -38,14 +74,28 @@ def test_causality_gradient(
 
     # Gradient result
     g = x.grad.abs()
-    future_grad = g[:, focus_sample + pad_frames :].sum().item()
-    past_grad = g[:, :focus_sample].sum().item()
-    is_causal = future_grad == 0
+    pre_grad = g[..., :focus_sample].sum(0).sum(0)
+    post_grad = g[..., focus_sample + 1 + pad_samples :].sum(0).sum(0)
+    is_causal = post_grad.sum() == 0
+
+    encoder_name = model.encoder.__class__.__name__
     if verbose:
-        print(f"({model.device}) Future total gradient:", future_grad)
-        print(f"({model.device}) Past total gradient:", past_grad)
+        print("VAP Encoder:", encoder_name)
+        print(f"({model.device}) Future total gradient:", post_grad.sum().cpu().item())
+        print(f"({model.device}) Past total gradient:", pre_grad.sum().cpu().item())
         if not is_causal:
-            print(f"Future gradient should be zero. got  {future_grad}")
+            print(
+                f"Future gradient should be zero. got  {post_grad.sum().cpu().item()}"
+            )
+
+    if plot:
+        plot_pre_post(
+            pre_grad,
+            post_grad,
+            pad_samples=pad_samples,
+            label=f"VAP {encoder_name}",
+            time=True,
+        )
 
     return is_causal
 
@@ -61,13 +111,21 @@ if __name__ == "__main__":
     parser.add_argument("--encoder", type=str, default="cpc")
     parser.add_argument("--duration", type=float, default=10)
     parser.add_argument("--focus", type=float, default=5)
+    parser.add_argument(
+        "--pad_samples", type=int, default=0, help="312 sample lookahead"
+    )
     parser.add_argument("--checkpoint", type=str, default=None)
     parser.add_argument("--cpu", action="store_true")
+    parser.add_argument("--plot", action="store_true")
     args = parser.parse_args()
+
+    if args.focus >= args.duration:
+        print("Focus time must be less than duration!")
+        args.focus = args.duration // 2
+        print("Setting focus time to ", args.focus)
 
     if args.checkpoint is not None:
         model = VAPModule.load_model(args.checkpoint)
-
     else:
         if args.encoder.lower() == "hubert":
             enc = EncoderHubert()
@@ -83,4 +141,11 @@ if __name__ == "__main__":
             model = model.to("cuda")
             print("CUDA")
 
-    test_causality_gradient(model, duration=10, focus_time=5, verbose=True)
+    test_causality_gradient_VAP(
+        model,
+        duration=args.duration,
+        focus_time=args.focus,
+        pad_samples=args.pad_samples,
+        verbose=True,
+        plot=args.plot,
+    )
