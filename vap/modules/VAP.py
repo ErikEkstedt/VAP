@@ -10,6 +10,7 @@ from vap.utils.utils import (
     vad_fill_silences,
     vad_omit_spikes,
 )
+from vap.modules.modules import ProjectionLayer
 
 everything_deterministic()
 
@@ -33,9 +34,8 @@ class VAP(nn.Module):
 
         self.feature_projection = nn.Identity()
         if self.encoder.dim != self.transformer.dim:
-            self.feature_projection = nn.Sequential(
-                nn.Linear(self.encoder.dim, self.transformer.dim),
-                nn.GELU(),
+            self.feature_projection = ProjectionLayer(
+                self.encoder.dim, self.transformer.dim
             )
 
         # Outputs

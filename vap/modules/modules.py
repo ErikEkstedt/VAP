@@ -508,6 +508,24 @@ class TransformerStereo(nn.Module):
         return out
 
 
+class ProjectionLayer(nn.Module):
+    """
+    Inpired by huggingface transformers `Wav2Vec2FeatureProjection`
+    in `transformers/models/wav2vec2/modeling_wav2vec2.py`
+    """
+
+    def __init__(self, inp_dim: int, out_dim: int, dropout: float = 0.1):
+        super().__init__()
+        self.layer_norm = nn.LayerNorm(inp_dim)
+        self.projection = nn.Linear(inp_dim, out_dim)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x):
+        x = self.layer_norm(x)
+        x = self.projection(x)
+        return self.dropout(x)
+
+
 def test_gpt():
     model = GPT(dim=256, dff_k=3, num_layers=4, num_heads=8)
     x = torch.rand((4, 20, model.dim))
