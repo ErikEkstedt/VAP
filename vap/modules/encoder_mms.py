@@ -38,6 +38,7 @@ class EncoderMMS(torch.nn.Module):
         self,
         checkpoint: str = "facebook/mms-300m",
         use_feature_projection: bool = False,
+        freeze: bool = True,
     ):
         super().__init__()
         self.checkpoint = checkpoint
@@ -63,6 +64,14 @@ class EncoderMMS(torch.nn.Module):
         if self.use_feature_projection:
             self.dim = 1024 if "300m" in checkpoint else 1280
             self.feature_projection = model.wav2vec2.feature_projection
+
+        if freeze:
+            self.freeze_params()
+
+    def freeze_params(self):
+        for p in self.parameters():
+            p.requires_grad = False
+        print(f"MMS {self.checkpoint} Frozen")
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         assert x.ndim == 3, f"Input must be (B, 1, n_samples), got {x.shape}"
