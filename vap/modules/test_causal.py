@@ -28,7 +28,19 @@ def plot_pre_post(pre, post, label="causality", pad_samples=0, time=False):
     plt.show()
 
 
-def test_causality_gradient_VAP(
+def print_verbose(is_causal, name, pre_grad, post_grad, pad_samples, device):
+    print()
+    print(f"Causality {name}")
+    print(f"({device}) (pad_samples: {pad_samples})")
+    if is_causal:
+        print(f"PASS: {name} is CAUSAL")
+    else:
+        print(f"FAIL: {name} is NOT CAUSAL")
+        print(f"Post-gradient:", round(post_grad.sum().cpu().item(), 1), "> 0")
+        print(f"Pre-gradient:", round(pre_grad.sum().cpu().item(), 1))
+
+
+def causality_test_gradient_VAP(
     model: VAP,
     duration: float = 10.0,
     focus_time: float = 5.0,
@@ -100,6 +112,42 @@ def test_causality_gradient_VAP(
     return is_causal
 
 
+def causal_test_samples_to_frames(
+    model,
+    duration: float = 10.0,
+    focus_time: float = 5.0,
+    pad_samples: int = 0,
+    sample_rate: int = 16_000,
+    wav_channels: int = 2,
+    output_key: str = "logits",
+    frame_hz: int = 50,
+    device="cpu",
+):
+    model.train()
+
+    # 1. Waveform + gradient tracking
+    n_samples = int(sample_rate * duration)
+    focus_sample = int(sample_rate * focus_time)
+    focus_frame = int(frame_hz * focus_time)
+    x = torch.randn(2, wav_channels, n_samples, device=device, requires_grad=True)
+
+    # 2. Model output
+    y = model(x)
+    if isinstance(y, dict):
+        y = y[output_key]
+
+    # 3. Gradient calculation
+    focus_loss = y[:, focus_frame, :].sum()
+    focus_loss.backward()
+
+    # Gradient result
+    g = x.grad.abs()
+    pre_grad = g[..., :focus_sample].sum(0).sum(0)
+    post_grad = g[..., focus_sample + 1 + pad_samples :].sum(0).sum(0)
+    is_causal = (post_grad.sum() == 0).item()
+    return is_causal, pre_grad, post_grad
+
+
 if __name__ == "__main__":
 
     from argparse import ArgumentParser
@@ -115,6 +163,7 @@ if __name__ == "__main__":
         "--pad_samples", type=int, default=0, help="312 sample lookahead"
     )
     parser.add_argument("--checkpoint", type=str, default=None)
+    parser.add_argument("--wav_channels", type=int, default=2)
     parser.add_argument("--cpu", action="store_true")
     parser.add_argument("--plot", action="store_true")
     args = parser.parse_args()
@@ -141,11 +190,31 @@ if __name__ == "__main__":
             model = model.to("cuda")
             print("CUDA")
 
-    test_causality_gradient_VAP(
+    name = model.__class__.__name__
+    is_causal, pre_grad, post_grad = causal_test_samples_to_frames(
         model,
-        duration=args.duration,
-        focus_time=args.focus,
-        pad_samples=args.pad_samples,
-        verbose=True,
-        plot=args.plot,
+        args.duration,
+        args.focus,
+        args.pad_samples,
+        wav_channels=args.wav_channels,
+        device=model.device,
     )
+    print_verbose(is_causal, name, pre_grad, post_grad, args.pad_samples, model.device)
+    if args.plot:
+        plot_pre_post(
+            pre_grad,
+            post_grad,
+            pad_samples=args.pad_samples,
+            label=f"{name}",
+            time=True,
+        )
+    if not is_causal and args.encoder == "cpc":
+        print("CPC is strictly causal using `pad_samples` >= 311")
+        is_causal, pre_grad, post_grad = causal_test_samples_to_frames(
+            model,
+            args.duration,
+            args.focus,
+            pad_samples=311,
+            device=model.device,
+        )
+        print_verbose(is_causal, name, pre_grad, post_grad, 311, model.device)
